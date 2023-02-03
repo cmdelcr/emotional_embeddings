@@ -1,0 +1,2 @@
+model_checkpoint_path: "checkpoint_sent_emb_glove_vad_mms_dot_product_hstack_plus_bias_pca"
+all_model_checkpoint_paths: "checkpoint_sent_emb_glove_vad_mms_dot_product_hstack_plus_bias_pca"
