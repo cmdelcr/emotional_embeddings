@@ -439,12 +439,12 @@ def run_experiment(config_filepath):
     print('########### emotion importance out of 10 = ', i)
     transformed_word_vectors = counter_fit(current_experiment, kmulti=i+1)
     
-    fname = "results/counter_fitted_vectors-"+str(i)+"_modif.txt"
+    fname = "/home/carolina/embeddings/counterfitting/results/counter_fitted_vectors-"+str(i)+"_modif.txt"
     print_word_vectors(transformed_word_vectors, fname)
 
     newvects = load_all_word_vectors(current_experiment.pretrained_vectors_filepath)
 
-    fname = "results/counter_fitted_vector_space-"+str(i)+"_modif.txt"
+    fname = "/home/carolina/embeddings/counterfitting/results/counter_fitted_vector_space-"+str(i)+"_modif.txt"
 
     print_all_vectorst(transformed_word_vectors, newvects, fname)
 

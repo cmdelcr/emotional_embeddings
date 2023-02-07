@@ -171,7 +171,7 @@ def filling_embeddings(word2idx, word2vec, vocabulary, embedding_dim, emb_type, 
 	
 	return embedding_matrix, vocabulary, y_train
 
-def save_senti_embeddings(senti_embedding, labels, labels_, name_file):
+def save_senti_embeddings(senti_embedding, labels, labels_, name_file, type_matrix_emb):
 	dir_name = settings.local_dir_embeddings + 'dense_model/emb'
 
 	if not os.path.exists(dir_name):
@@ -186,13 +186,14 @@ def save_senti_embeddings(senti_embedding, labels, labels_, name_file):
 			i += 1
 		f.close()
 
-	'''with open(os.path.join(dir_name, name_file + '_full_matrix.txt'), 'w') as f:
-		i = 0
-		mat = np.matrix(senti_embedding)
-		for w_vec in mat:
-			f.write(labels_[i].replace(" ", "_" ) + " ")
-			np.savetxt(f, fmt='%.6f', X=w_vec)
-			i += 1
-		f.close()'''
+	if type_matrix_emb == 'full':
+		with open(os.path.join(dir_name, name_file + '_full_matrix.txt'), 'w') as f:
+			i = 0
+			mat = np.matrix(senti_embedding)
+			for w_vec in mat:
+				f.write(labels_[i].replace(" ", "_" ) + " ")
+				np.savetxt(f, fmt='%.6f', X=w_vec)
+				i += 1
+			f.close()
 
 

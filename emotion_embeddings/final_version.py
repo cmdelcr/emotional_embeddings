@@ -110,12 +110,12 @@ def merge_semantic_end_emotion_embeddings(model, embedding_matrix, act='tanh', a
 	#print('size after dot product: ', np.shape(senti_embedding))
 	#print('before apply relu')
 	#print(senti_embedding[0])
-	#senti_embedding = np.apply_along_axis(relu, 0, senti_embedding)
+	senti_embedding = np.apply_along_axis(np.tanh, 0, senti_embedding)
 
 	#print('after apply relu')
 	#print('size after appy tanh', np.shape(senti_embedding))
 	
-	senti_embedding_no_pca = np.hstack((embedding_matrix, senti_embedding))
+	senti_embedding = np.hstack((embedding_matrix, senti_embedding))
 	#print('size after stack', np.shape(senti_embedding_no_pca))
 	#exit()
 
@@ -125,17 +125,17 @@ def merge_semantic_end_emotion_embeddings(model, embedding_matrix, act='tanh', a
 	#TruncatedSVD, LinearDiscriminantAnalysis, Isomap, LocallyLinearEmbedding
 
 	if type_matrix_emb == 'full':
-		n = senti_embedding_no_pca.shape[0] # how many rows we have in the dataset
+		n = senti_embedding.shape[0] # how many rows we have in the dataset
 		chunk_size = 2000 # how many rows we feed to IPCA at a time, the divisor of n
 		ipca = IncrementalPCA(n_components=300, batch_size=16)
 
 		for i in range(0, n//chunk_size):
-			ipca.partial_fit(senti_embedding_no_pca[i*chunk_size : (i+1)*chunk_size])
+			ipca.partial_fit(senti_embedding[i*chunk_size : (i+1)*chunk_size])
 
-		return ipca.transform(senti_embedding_no_pca)#, senti_embedding_no_pca
+		return ipca.transform(senti_embedding)#, senti_embedding_no_pca
 	else:
 		pca = PCA(300)
-		return pca.fit_transform(senti_embedding_no_pca)#, senti_embedding_no_pca
+		return pca.fit_transform(senti_embedding)#, senti_embedding_no_pca
 
 def getting_lemmas_(emb_type, vad, word2vec):
 	counter_lem = 0
@@ -192,9 +192,10 @@ for emb_type in settings.embedding_type:
 	type_matrix_emb = 'vad'
 	print('\tType matrix emp: ', type_matrix_emb)
 
-	
-	embedding_matrix, vocabulary_, y_train_ = filling_embeddings_vad_values(word2idx, word2vec, vocabulary, embedding_dim, emb_type, y_train)
-	#embedding_matrix, vocabulary_, y_train_ = filling_embeddings_full_matrix(word2idx, word2vec, vocabulary, embedding_dim, emb_type, y_train)
+	if type_matrix_emb == 'vad':
+		embedding_matrix, vocabulary_, y_train_ = filling_embeddings_vad_values(word2idx, word2vec, vocabulary, embedding_dim, emb_type, y_train)
+	else:
+		embedding_matrix, vocabulary_, y_train_ = filling_embeddings_full_matrix(word2idx, word2vec, vocabulary, embedding_dim, emb_type, y_train)
 	print('Embeddings matrix shape: ', embedding_matrix.shape)
 
 	for embedding_dimention in dim_arr:
@@ -225,13 +226,13 @@ for emb_type in settings.embedding_type:
 				print('----------------------------------------')
 
 				#full_mms_dot_product_hstack_plus_bias_relu_pca
-				name_file = 'sent_emb_' + emb_type + '_vad_mms_dot_product_hstack_plus_bias_pca'
+				name_file = 'sent_emb_' + emb_type + '_' + type_matrix_emb 	+ '_mms_dot_product_hstack_plus_bias_tanh_pca'
 				with open(os.path.join('/home/carolina/embeddings/dense_model/emb/results_training', name_file + '.txt'), 'w') as f:
 					f.write('mean_squared_error: %.6f\nroot_mean_squared_error: %.6f\nr2_score: %.6f' % 
 						(results[0], results[1], r2))
 					f.close()
 
-				save_senti_embeddings(senti_embedding, vocabulary, vocabulary_, name_file)
+				save_senti_embeddings(senti_embedding, vocabulary, vocabulary_, name_file, type_matrix_emb)
 				#name_file = 'sent_emb_' + emb_type + '_' + str(embedding_dimention) + '_' + act + '_e'+ str(epoch) + '_nopca_' + type_matrix_emb + '.txt'
 				#save_senti_embeddings(senti_embedding_, vocabulary, vocabulary_, name_file)
 			print('..............................')

@@ -76,9 +76,10 @@ x_test = pad_sequences(x_test, max_len_input, padding='pre', truncating='post')
 word2vec = {}
 #path = settings.dir_embeddings_glove #'/home/carolina/Documents/sota/Emotional-Embedding-master/counter_fitted_vectors-0.txresults/counter_fitted_vectors-0.txt'
 #path = '/home/carolina/corpora/embeddings/emotions_embedings/sawe-tanh-pca-100-glove.txt'
-emb_type = 'sent_emb_glove_vad_mms_dot_product_hstack_plus_bias_pca'
+emb_type = 'sent_emb_word2vec_vad_dot_product_hstack_plus_bias_tanh_pca'
 #path = settings.dir_embeddings_word2vec 
-path = '/home/carolina/embeddings/dense_model/emb/sent_emb_glove_vad_mms_dot_product_hstack_plus_bias_pca.txt'
+#path = '/home/carolina/embeddings/counterfitting/results/counter_fitted_vectors-0_modif.txt'
+path = '/home/carolina/embeddings/dense_model/emb/sent_emb_word2vec_vad_dot_product_hstack_plus_bias_tanh_pca.txt'
 if emb_type != 'word2vec':
 	for line in open(path):
 		values = line.split()
@@ -171,7 +172,6 @@ for run in range(1, 11):
 	arr_precision.append(precision)
 	arr_recall.append(recall)
 	arr_f1.append(f1)
-
 
 	# loss
 	'''plt.plot(r.history['loss'], label='loss')
