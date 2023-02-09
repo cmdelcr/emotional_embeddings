@@ -1,4 +1,5 @@
 import os
+import re
 from gensim import models
 import pandas as pd
 from nltk.stem import WordNetLemmatizer
@@ -49,6 +50,52 @@ def read_emo_lex_file():
 			dict_emo_lex[str(row[0])] = arr_emo_lex
 
 	return dict_emo_lex
+
+
+def def_value(row):
+	arr_value = np.zeros(4)
+
+	# strongly_positive, weakly_positive, strongly_negative, and weakly_negative
+	if 'positive' in str(row[5]):
+		if 'strong' in str(row[0]):
+			arr_value[0] = 1
+		else:
+			arr_value[1] = 1
+	else:
+		if 'strong' in str(row[0]):
+			arr_value[2] = 1
+		else:
+			arr_value[3] = 1
+
+	return arr_value
+
+def def_values_keys(row, key, dict_data):
+	if key in dict_data:
+		if 'positive' in str(row[5]) and 'strong' in str(row[0]) and dict_data[key][2] == 1:
+			print('Error, different polarity (' + key + '): ', row[0], ', ', row[5])
+			print(dict_data[key])
+		if 'positive' in str(row[5]) and 'weak' in str(row[0]) and dict_data[key][2] == 1:
+			print('Error, different polarity (' + key + '): ', row[0], ', ', row[5])
+			print(dict_data[key])
+		if 'negative' in str(row[5]) and 'strong' in str(row[0]) and dict_data[key][1] == 1:
+			print('Error, different polarity (' + key + '): ', row[0], ', ', row[5])
+			print(dict_data[key])
+		if 'negative' in str(row[5]) and 'weak' in str(row[0]) and dict_data[key][1] == 1:
+			print('Error, different polarity (' + key + '): ', row[0], ', ', row[5])
+			print(dict_data[key])
+	
+
+def read_subjectivity_clues():
+	dict_data = {}
+	with open('/home/carolina/corpora/lexicons/subjectivity_clues/subjclueslen1-HLTEMNLP05.tff', 'r') as file:
+		for line in file:
+			row = line.split()
+			key = re.sub(r'word1=', '', str(row[2])).lower()
+			#def_values_keys(row, key, dict_data)
+			dict_data[key] = def_value(row)
+		file.close()
+
+	return dict_data
 
 def getting_lemmas(emb_type, vad, word2vec):
 	counter_lem = 0
