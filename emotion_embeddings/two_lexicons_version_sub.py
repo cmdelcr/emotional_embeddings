@@ -45,7 +45,7 @@ def create_model(input_shape, num_units, activation_function):
 	dense2 = Dense(200, activation='relu')#, kernel_regularizer=regularizers.l2(0.001), bias_regularizer=regularizers.l2(0.001)) 
 		#activation='tanh', kernel_regularizer=regularizers.l2(0.01), bias_regularizer=regularizers.l2(0.01))
 	x1 = dense2(x1)
-	output = Dense(8, activation='sigmoid')(x1)
+	output = Dense(4, activation='sigmoid')(x1)
 
 	model = Model(inputs=input_, outputs=output)
 
