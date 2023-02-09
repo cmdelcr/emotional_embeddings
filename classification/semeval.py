@@ -76,10 +76,10 @@ x_test = pad_sequences(x_test, max_len_input, padding='pre', truncating='post')
 word2vec = {}
 #path = settings.dir_embeddings_glove #'/home/carolina/Documents/sota/Emotional-Embedding-master/counter_fitted_vectors-0.txresults/counter_fitted_vectors-0.txt'
 #path = '/home/carolina/corpora/embeddings/emotions_embedings/sawe-tanh-pca-100-glove.txt'
-emb_type = 'sent_emb_word2vec_vad_dot_product_hstack_plus_bias_tanh_pca'
+emb_type = 'emo_lex'
 #path = settings.dir_embeddings_word2vec 
-#path = '/home/carolina/embeddings/counterfitting/results/counter_fitted_vectors-0_modif.txt'
-path = '/home/carolina/embeddings/dense_model/emb/sent_emb_word2vec_vad_dot_product_hstack_plus_bias_tanh_pca.txt'
+#path = '/home/carolina/Documents/sota/counter-fitting-master/results/counter_fitted_vectors.txt'
+path = '/home/carolina/embeddings/dense_model/emb/emo_lex.txt'
 if emb_type != 'word2vec':
 	for line in open(path):
 		values = line.split()
@@ -92,6 +92,7 @@ count_missing_words = 0
 print('Filling pre-trained embeddings...')
 num_words = len(word2idx) + 1
 embedding_matrix = np.zeros((num_words, embedding_dim))
+
 for word, i in word2idx.items():
 	try:
 		embedding_vector = word2vec[word]
@@ -167,7 +168,7 @@ for run in range(1, 11):
 	print('precision: ', precision)
 	print('recall: ', recall)
 	print('f1: ', f1)
-
+	exit()
 	arr_acc.append(acc)
 	arr_precision.append(precision)
 	arr_recall.append(recall)

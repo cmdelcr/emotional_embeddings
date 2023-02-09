@@ -32,6 +32,24 @@ def read_vad_file():
 
 	return dict_data
 
+
+def read_emo_lex_file():
+	df_emo_lex = pd.read_csv('/home/carolina/corpora/lexicons/NRC-Emotion-Lexicon/NRC-Emotion-Lexicon-Wordlevel-v0.92.txt', 
+			keep_default_na=False, header=None, sep='\t')
+
+	arr_emotions = ['anger', 'fear', 'anticipation', 'trust', 'surprise', 'sadness', 'joy', 'disgust', 'negative', 'positive']
+	dict_emo_lex = {}
+	for index, row in df_emo_lex.iterrows():
+		if not (str(row[1]) == 'negative' or str(row[1]) == 'positive'): 
+			if str(row[0]) in dict_emo_lex:
+				arr_emo_lex = dict_emo_lex[str(row[0])]
+			else:
+				arr_emo_lex = np.zeros(10)
+			arr_emo_lex[arr_emotions.index(str(row[1]))] = int(row[2])
+			dict_emo_lex[str(row[0])] = arr_emo_lex
+
+	return dict_emo_lex
+
 def getting_lemmas(emb_type, vad, word2vec):
 	counter_lem = 0
 	counter_word_dict = 0

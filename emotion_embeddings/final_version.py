@@ -110,7 +110,7 @@ def merge_semantic_end_emotion_embeddings(model, embedding_matrix, act='tanh', a
 	#print('size after dot product: ', np.shape(senti_embedding))
 	#print('before apply relu')
 	#print(senti_embedding[0])
-	senti_embedding = np.apply_along_axis(np.tanh, 0, senti_embedding)
+	senti_embedding = np.apply_along_axis(relu, 0, senti_embedding)
 
 	#print('after apply relu')
 	#print('size after appy tanh', np.shape(senti_embedding))
@@ -226,7 +226,7 @@ for emb_type in settings.embedding_type:
 				print('----------------------------------------')
 
 				#full_mms_dot_product_hstack_plus_bias_relu_pca
-				name_file = 'sent_emb_' + emb_type + '_' + type_matrix_emb 	+ '_mms_dot_product_hstack_plus_bias_tanh_pca'
+				name_file = 'sent_emb_' + emb_type + '_' + type_matrix_emb 	+ '_mms_dot_product_hstack_plus_bias_relu_pca'
 				with open(os.path.join('/home/carolina/embeddings/dense_model/emb/results_training', name_file + '.txt'), 'w') as f:
 					f.write('mean_squared_error: %.6f\nroot_mean_squared_error: %.6f\nr2_score: %.6f' % 
 						(results[0], results[1], r2))
