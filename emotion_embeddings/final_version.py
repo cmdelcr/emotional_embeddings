@@ -207,6 +207,8 @@ for emb_type in settings.embedding_type:
 			for epoch in arr_epochs:
 				print('\t  Epochs: ', epoch)
 				#model = DenseModel(embedding_dimention, act)
+				
+
 				model = create_model(len(embedding_matrix[0]), embedding_dimention, act)
 				model = compile_model(model)
 				r = train_model(model, embedding_matrix, y_train_, epochs_=epoch)

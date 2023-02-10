@@ -76,10 +76,10 @@ x_test = pad_sequences(x_test, max_len_input, padding='pre', truncating='post')
 word2vec = {}
 #path = settings.dir_embeddings_glove #'/home/carolina/Documents/sota/Emotional-Embedding-master/counter_fitted_vectors-0.txresults/counter_fitted_vectors-0.txt'
 #path = '/home/carolina/corpora/embeddings/emotions_embedings/sawe-tanh-pca-100-glove.txt'
-emb_type = 'emo_lex'
+emb_type = 'emo_lex'#'combined_class_reg__full_matrix' # sub_clue, emo_lex
 #path = settings.dir_embeddings_word2vec 
 #path = '/home/carolina/Documents/sota/counter-fitting-master/results/counter_fitted_vectors.txt'
-path = '/home/carolina/embeddings/dense_model/emb/emo_lex.txt'
+path = '/home/carolina/embeddings/dense_model/emb/' + emb_type + '.txt'
 if emb_type != 'word2vec':
 	for line in open(path):
 		values = line.split()
@@ -168,7 +168,6 @@ for run in range(1, 11):
 	print('precision: ', precision)
 	print('recall: ', recall)
 	print('f1: ', f1)
-	exit()
 	arr_acc.append(acc)
 	arr_precision.append(precision)
 	arr_recall.append(recall)
@@ -192,6 +191,7 @@ for run in range(1, 11):
 	rows, columns = np.shape(cf_matrix)
 	path_cf = 'confusion_matrix'
 	print(cf_matrix)
+	exit()
 	if not os.path.exists(path_cf):
 		with open(path_cf, 'w') as file:
 			file.close()

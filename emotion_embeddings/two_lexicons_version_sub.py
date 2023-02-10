@@ -42,20 +42,20 @@ def create_model(input_shape, num_units, activation_function):
 	input_ = Input(shape=(input_shape,))
 	dense1 = Dense(100, activation='relu')#, kernel_regularizer=regularizers.l2(0.001), bias_regularizer=regularizers.l2(0.001)) 
 	x1 = dense1(input_)
-	dense2 = Dense(200, activation='relu')#, kernel_regularizer=regularizers.l2(0.001), bias_regularizer=regularizers.l2(0.001)) 
+	#dense2 = Dense(200, activation='relu')#, kernel_regularizer=regularizers.l2(0.001), bias_regularizer=regularizers.l2(0.001)) 
 		#activation='tanh', kernel_regularizer=regularizers.l2(0.01), bias_regularizer=regularizers.l2(0.01))
-	x1 = dense2(x1)
+	#x1 = dense2(x1)
 	output = Dense(4, activation='sigmoid')(x1)
 
 	model = Model(inputs=input_, outputs=output)
 
 	return model
 
-def compile_model(model, loss_='binary_crossentropy', optimizer_='adam'):
+def compile_model(model, loss_='categorical_crossentropy', optimizer_='adam'):
 	# regular categorical_crossentropy requires one_hot_encoding for the targets, 
 	#sparse_categorical_crossentropy is used to don't use the conversion
 	model.compile(
-			loss=loss_,
+			loss='categorical_crossentropy',
 			optimizer='adam',#Adam(learning_rate=0.001),#optimizer_,#Adam(lr=0.001),
 			metrics=['accuracy']
 	)
@@ -66,8 +66,8 @@ def train_model(model, x_train, y_train, batch_size_=256, epochs_=200, verbose=0
 	print('Training model...')
 	r = model.fit(x_train, 
 		y_train, 
-		batch_size=batch_size_, 
-		epochs=epochs_, 
+		batch_size=256, 
+		epochs=50, 
 		verbose=1)
 
 	return r
@@ -209,8 +209,8 @@ for emb_type in settings.embedding_type:
 	word2idx, vocabulary, y_train = getting_lemmas_(emb_type, dict_data, word2vec)
 	y_train = np.asarray(y_train)
 
-	minmax_scale = preprocessing.MinMaxScaler(feature_range=(-1, 1))
-	y_train = minmax_scale.fit_transform(y_train)
+	#minmax_scale = preprocessing.MinMaxScaler(feature_range=(-1, 1))
+	#y_train = minmax_scale.fit_transform(y_train)
 
 	#for type_matrix_emb in arr_type_matrix_emb:
 	type_matrix_emb = 'vad'
@@ -250,7 +250,7 @@ for emb_type in settings.embedding_type:
 				print('----------------------------------------')
 
 				#full_mms_dot_product_hstack_plus_bias_relu_pca
-				name_file = 'emo_lex'
+				name_file = 'sub_clue'
 				#with open(os.path.join('/home/carolina/embeddings/dense_model/emb/results_training', name_file + '.txt'), 'w') as f:
 				#	f.write('mean_squared_error: %.6f\nroot_mean_squared_error: %.6f\nr2_score: %.6f' % 
 				#		(results[0], results[1], r2))

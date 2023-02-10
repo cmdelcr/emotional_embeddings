@@ -38,19 +38,38 @@ def read_emo_lex_file():
 	df_emo_lex = pd.read_csv('/home/carolina/corpora/lexicons/NRC-Emotion-Lexicon/NRC-Emotion-Lexicon-Wordlevel-v0.92.txt', 
 			keep_default_na=False, header=None, sep='\t')
 
-	arr_emotions = ['anger', 'fear', 'anticipation', 'trust', 'surprise', 'sadness', 'joy', 'disgust', 'negative', 'positive']
+	arr_emotions = ['anger', 'fear', 'anticipation', 'trust', 'surprise', 'sadness', 'joy', 'disgust', 'negative', 'positive', 'no_emo_pol']
+	arr_counter = np.zeros(10)
 	dict_emo_lex = {}
 	for index, row in df_emo_lex.iterrows():
-		if not (str(row[1]) == 'negative' or str(row[1]) == 'positive'): 
-			if str(row[0]) in dict_emo_lex:
-				arr_emo_lex = dict_emo_lex[str(row[0])]
-			else:
-				arr_emo_lex = np.zeros(10)
-			arr_emo_lex[arr_emotions.index(str(row[1]))] = int(row[2])
-			dict_emo_lex[str(row[0])] = arr_emo_lex
+		#if not (str(row[1]) == 'negative' or str(row[1]) == 'positive'): 
+		if str(row[0]) in dict_emo_lex:
+			arr_emo_lex = dict_emo_lex[str(row[0])]
+		else:
+			arr_emo_lex = np.zeros(11)
+		idx = arr_emotions.index(str(row[1]))
+		if int(row[2]) == 1:
+			#print(arr_counter)
+			arr_counter[idx] = arr_counter[idx] + 1
+		arr_emo_lex[idx] = int(row[2])
+		dict_emo_lex[str(row[0])] = arr_emo_lex
 
-	return dict_emo_lex
+	return verify_emo_pol(dict_emo_lex, arr_counter)
 
+
+def verify_emo_pol(dict_emo_lex, arr_counter):
+	counter = 0
+	for key, value in dict_emo_lex.items():
+		if not value.any():
+			value[-1] = 1
+			dict_emo_lex[key] = value
+			counter += 1
+
+	aux = np.zeros(1)
+	aux[0] = counter
+	arr_counter = np.append(arr_counter, aux, axis=0)
+
+	return dict_emo_lex, arr_counter
 
 def def_value(row):
 	arr_value = np.zeros(4)
