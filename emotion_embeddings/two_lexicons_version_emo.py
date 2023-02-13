@@ -38,14 +38,14 @@ arr_activation_functions = ['relu']#['tanh', 'relu', 'sigmoid', 'exponential']
 arr_type_matrix_emb = ['full']
 
 
-def create_model(input_shape, num_units, activation_function):
+def create_model(input_shape, num_units, output_dim):
 	input_ = Input(shape=(input_shape,))
 	dense1 = Dense(100, activation='relu')#, kernel_regularizer=regularizers.l2(0.001), bias_regularizer=regularizers.l2(0.001)) 
 	x1 = dense1(input_)
-	#dense2 = Dense(200, activation='relu')#, kernel_regularizer=regularizers.l2(0.001), bias_regularizer=regularizers.l2(0.001)) 
+	#dense2 = Dense(50, activation='relu')#, kernel_regularizer=regularizers.l2(0.001), bias_regularizer=regularizers.l2(0.001)) 
 		#activation='tanh', kernel_regularizer=regularizers.l2(0.01), bias_regularizer=regularizers.l2(0.01))
 	#x1 = dense2(x1)
-	output = Dense(11, activation='sigmoid')(x1)
+	output = Dense(output_dim, activation='sigmoid')(x1)
 
 	model = Model(inputs=input_, outputs=output)
 
@@ -66,8 +66,11 @@ def compile_model(model, loss_='categorical_crossentropy', optimizer_='adam'):
 def def_class_weight(arr_class_counter):
 	arr_class = {}
 	for idx in range(len(arr_class_counter)):
-		arr_class[idx] = arr_class_counter[-1] / arr_class_counter[idx]
+		#n_samples / (n_classes * n_samplesj)
+		arr_class[idx] = np.sum(arr_class_counter) / (len(arr_class_counter) * arr_class_counter[idx])
 
+	print('class_weight: ', arr_class)
+	#exit()
 	return arr_class
 
 
@@ -208,8 +211,10 @@ def combine_lexicons(vad, emo_lex):
 #------------------------------------------------------------------------------------------------------------------
 #dict_data = read_vad_file()
 #dict_data_emo_lex = read_emo_lex_file()
-dict_data, arr_class_counter = read_emo_lex_file()
+# if only_emotions=True consider only the 8 emotions (ignoring the polarity)
+dict_data, arr_class_counter = read_emo_lex_file(only_emotions=True)
 #dict_data = combine_lexicons(dict_data, dict_data_emo_lex)
+print('class distribution: ', arr_class_counter)
 print('Vocabulary size: : ', len(dict_data))
 
 activation_function = 'tanh'
@@ -241,7 +246,7 @@ for emb_type in settings.embedding_type:
 			for epoch in arr_epochs:
 				print('\t  Epochs: ', epoch)
 				#model = DenseModel(embedding_dimention, act)
-				model = create_model(len(embedding_matrix[0]), embedding_dimention, act)
+				model = create_model(len(embedding_matrix[0]), embedding_dimention, output_dim=np.shape(y_train_)[1])
 				model = compile_model(model)
 				r = train_model(model, embedding_matrix, y_train_, arr_class_counter, epochs_=epoch)
 				results = evaluate_model(model, y_train_)
