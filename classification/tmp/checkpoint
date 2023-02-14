@@ -1,2 +1,2 @@
-model_checkpoint_path: "checkpoint_emo_lex"
-all_model_checkpoint_paths: "checkpoint_emo_lex"
+model_checkpoint_path: "checkpoint_combined_class_reg_full_matrix"
+all_model_checkpoint_paths: "checkpoint_combined_class_reg_full_matrix"

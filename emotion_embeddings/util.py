@@ -110,18 +110,23 @@ def def_values_keys(row, key, dict_data):
 
 def read_subjectivity_clues():
 	dict_data = {}
+	arr_counts = np.zeros(4)
+	print('Reading sub_clues...')
 	with open('/home/carolina/corpora/lexicons/subjectivity_clues/subjclueslen1-HLTEMNLP05.tff', 'r') as file:
 		for line in file:
 			row = line.split()
 			key = re.sub(r'word1=', '', str(row[2])).lower()
-			#def_values_keys(row, key, dict_data)
-			dict_data[key] = def_value(row)
+			if key not in dict_data:
+				arr = def_value(row)
+				dict_data[key] = arr
+				arr_counts = np.add(arr_counts, arr)
 		file.close()
 
-	print(np.shape(dict_data))
-	exit()
+	#print(len(dict_data))
+	#print(arr_counts)
+	#exit()
 
-	return dict_data
+	return dict_data, arr_counts
 
 def getting_lemmas(emb_type, vad, word2vec):
 	counter_lem = 0

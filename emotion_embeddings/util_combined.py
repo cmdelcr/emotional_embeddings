@@ -5,6 +5,7 @@ import pandas as pd
 from nltk.stem import WordNetLemmatizer
 import numpy as np
 import settings
+import random
 
 from sklearn.decomposition import PCA
 from sklearn.decomposition import IncrementalPCA
@@ -38,6 +39,53 @@ def read_vad_file():
 		dict_data[str(row[0]).lower()] = [float(row[1]), float(row[2]), float(row[3])]
 
 	return dict_data
+
+
+
+def verify_emo_pol(dict_emo_lex, arr_counter):
+	counter = 0
+	for key, value in dict_emo_lex.items():
+		if not value.any():
+			value[-1] = 1
+			dict_emo_lex[key] = value
+			counter += 1
+
+	aux = np.zeros(1)
+	aux[0] = counter
+	arr_counter = np.append(arr_counter, aux, axis=0)
+
+	return dict_emo_lex, arr_counter
+
+
+
+
+def read_emo_lex_file(only_emotions):
+	df_emo_lex = pd.read_csv('/home/carolina/corpora/lexicons/NRC-Emotion-Lexicon/NRC-Emotion-Lexicon-Wordlevel-v0.92.txt', 
+			keep_default_na=False, header=None, sep='\t')
+
+	arr_emotions = ['anger', 'fear', 'anticipation', 'trust', 'surprise', 'sadness', 'joy', 'disgust', 'negative', 'positive', 'no_emo_pol']
+	if only_emotions:
+		for i in range(2):
+			arr_emotions = list(np.delete(arr_emotions, 8, axis=0))
+
+	arr_counter = np.zeros(8) if only_emotions else np.zeros(10)
+	dict_emo_lex = {}
+	for index, row in df_emo_lex.iterrows():
+		if not (str(row[1]) == 'negative' or str(row[1]) == 'positive') or not only_emotions: 
+			if str(row[0]) in dict_emo_lex:
+				arr_emo_lex = dict_emo_lex[str(row[0])]
+			else:
+				arr_emo_lex = np.zeros(9) if only_emotions else np.zeros(11)
+			idx = arr_emotions.index(str(row[1]))
+			if int(row[2]) == 1:
+				#print(arr_counter)
+				arr_counter[idx] = arr_counter[idx] + 1
+			arr_emo_lex[idx] = int(row[2])
+			dict_emo_lex[str(row[0])] = arr_emo_lex
+
+	return verify_emo_pol(dict_emo_lex, arr_counter)
+
+
 
 
 
@@ -76,19 +124,40 @@ def def_values_keys(row, key, dict_data):
 			print(dict_data[key])
 	
 
-
 def read_subjectivity_clues():
 	dict_data = {}
+	arr_counts = np.zeros(4)
+	print('Reading sub_clues...')
 	with open('/home/carolina/corpora/lexicons/subjectivity_clues/subjclueslen1-HLTEMNLP05.tff', 'r') as file:
 		for line in file:
 			row = line.split()
 			key = re.sub(r'word1=', '', str(row[2])).lower()
-			#def_values_keys(row, key, dict_data)
-			dict_data[key] = def_value(row)
+			if key not in dict_data:
+				arr = def_value(row)
+				dict_data[key] = arr
+				arr_counts = np.add(arr_counts, arr)
 		file.close()
 
-	return dict_data
+	#print(len(dict_data))
+	#print(arr_counts)
+	#exit()
 
+	return dict_data, arr_counts
+
+def read_subjectivity_clues():
+	dict_data = {}
+	arr_class_counter = np.zeros(4)
+	with open('/home/carolina/corpora/lexicons/subjectivity_clues/subjclueslen1-HLTEMNLP05.tff', 'r') as file:
+		for line in file:
+			row = line.split()
+			key = re.sub(r'word1=', '', str(row[2])).lower()
+			if key not in dict_data:
+				arr = def_value(row)
+				dict_data[key] = arr
+				arr_class_counter = np.add(arr_class_counter, arr)
+		file.close()
+
+	return dict_data, arr_class_counter
 
 
 def getting_lemmas(emb_type, dict_vad, dict_sub, word2vec):
@@ -124,7 +193,7 @@ def getting_lemmas(emb_type, dict_vad, dict_sub, word2vec):
 
 
 
-def filling_embeddings(word2idx, word2vec, vocabulary, dict_vad, dict_sub, emb_type, type_matrix_emb):
+def filling_embeddings(word2idx, word2vec, vocabulary, dict_vad, dict_sub, emb_type, type_matrix_emb, type_lex):
 	count_known_words = 0
 	count_unknown_words = 0
 	count_vad = 0
@@ -143,6 +212,7 @@ def filling_embeddings(word2idx, word2vec, vocabulary, dict_vad, dict_sub, emb_t
 
 	embedding_matrix = np.zeros((len(embeddings_list), 300))
 	i = 0
+	size_output = random.choice(list(dict_sub.items()))[1]
 	for word in embeddings_list:
 		embedding_vector = word2vec[word]
 		if embedding_vector is None:
@@ -165,7 +235,7 @@ def filling_embeddings(word2idx, word2vec, vocabulary, dict_vad, dict_sub, emb_t
 			arr = np.append(dict_sub[word], np.zeros(1), axis=0)
 			count_sub += 1
 		else:
-			arr = np.zeros(5)
+			arr = np.zeros(len(size_output) + (0 if type_lex == 'sub_clues' else 1))
 			arr[-1] = 1
 		y_sub.append(arr)
 		i += 1
@@ -175,7 +245,7 @@ def filling_embeddings(word2idx, word2vec, vocabulary, dict_vad, dict_sub, emb_t
 	print('Size words initialized with a gaussian distribution: ', count_unknown_words)
 	print('Size words with a value in word2vec: ', count_known_words)
 	print('Size of vad values: ', count_vad)
-	print('Size sub_clues: ', count_sub)
+	print('Size ' + type_lex + ': ', count_sub)
 
 	
 	return embedding_matrix, embeddings_list, y_vad, y_sub
@@ -231,7 +301,7 @@ def save_senti_embeddings(senti_embedding, labels, name_file, type_matrix_emb):
 		os.makedirs(dir_name)
 
 	i = 0
-	with open(os.path.join(dir_name, name_file + '_' + ('_full_matrix' if type_matrix_emb else '') + '.txt'), 'w') as f:
+	with open(os.path.join(dir_name, name_file + '_' + ('full_matrix' if type_matrix_emb else '') + '.txt'), 'w') as f:
 		mat = np.matrix(senti_embedding)
 		for w_vec in mat:
 			if labels[i] in labels:

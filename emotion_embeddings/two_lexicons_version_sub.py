@@ -42,7 +42,7 @@ def create_model(input_shape, num_units, activation_function):
 	input_ = Input(shape=(input_shape,))
 	dense1 = Dense(100, activation='relu')#, kernel_regularizer=regularizers.l2(0.001), bias_regularizer=regularizers.l2(0.001)) 
 	x1 = dense1(input_)
-	#dense2 = Dense(200, activation='relu')#, kernel_regularizer=regularizers.l2(0.001), bias_regularizer=regularizers.l2(0.001)) 
+	dense2 = Dense(50, activation='relu')#, kernel_regularizer=regularizers.l2(0.001), bias_regularizer=regularizers.l2(0.001)) 
 		#activation='tanh', kernel_regularizer=regularizers.l2(0.01), bias_regularizer=regularizers.l2(0.01))
 	#x1 = dense2(x1)
 	output = Dense(4, activation='sigmoid')(x1)
@@ -56,18 +56,29 @@ def compile_model(model, loss_='categorical_crossentropy', optimizer_='adam'):
 	#sparse_categorical_crossentropy is used to don't use the conversion
 	model.compile(
 			loss='categorical_crossentropy',
-			optimizer='adam',#Adam(learning_rate=0.001),#optimizer_,#Adam(lr=0.001),
+			optimizer=Adam(learning_rate=0.0001),#optimizer_,#Adam(lr=0.001),
 			metrics=['accuracy']
 	)
 
 	return model
 
-def train_model(model, x_train, y_train, batch_size_=256, epochs_=200, verbose=0):
+def def_class_weight(arr_class_counter):
+	arr_class = {}
+	for idx in range(len(arr_class_counter)):
+		#n_samples / (n_classes * n_samplesj)
+		arr_class[idx] = np.sum(arr_class_counter) / (len(arr_class_counter) * arr_class_counter[idx])
+
+	print('class_weight: ', arr_class)
+	#exit()
+	return arr_class
+
+def train_model(model, x_train, y_train, arr_class_counter, batch_size_=256, epochs_=200, verbose=0):
 	print('Training model...')
 	r = model.fit(x_train, 
 		y_train, 
-		batch_size=256, 
-		epochs=50, 
+		batch_size=128, 
+		epochs=300, 
+		class_weight=def_class_weight(arr_class_counter),
 		verbose=1)
 
 	return r
@@ -198,7 +209,7 @@ def combine_lexicons(vad, emo_lex):
 #------------------------------------------------------------------------------------------------------------------
 #dict_data = read_vad_file()
 #dict_data_emo_lex = read_emo_lex_file()
-dict_data = read_subjectivity_clues()
+dict_data, arr_class_counter = read_subjectivity_clues()
 #dict_data = combine_lexicons(dict_data, dict_data_emo_lex)
 print('Vocabulary size: : ', len(dict_data))
 
@@ -234,7 +245,7 @@ for emb_type in settings.embedding_type:
 				#model = DenseModel(embedding_dimention, act)
 				model = create_model(len(embedding_matrix[0]), embedding_dimention, act)
 				model = compile_model(model)
-				r = train_model(model, embedding_matrix, y_train_, epochs_=epoch)
+				r = train_model(model, embedding_matrix, y_train_, arr_class_counter, epochs_=epoch)
 				results = evaluate_model(model, y_train_)
 				pred = model.predict(embedding_matrix)
 				pred = pred.round()
