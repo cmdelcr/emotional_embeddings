@@ -41,29 +41,45 @@ lstm_dim_arr = [300]
 lexicons = ['nrc_vad']
 mode = ['vad_lem']#vad_emo-int
 
-
-df = pd.read_csv(settings.input_dir_emo_corpora + 'isear.csv',header=None)
+name_file = 'DATA' # isear, DATA
+if name_file == 'isear':
+	df = pd.read_csv(settings.input_dir_emo_corpora + 'isear/' + name_file + '.csv', delimiter=',', header=None)
+else:
+	df = pd.read_csv(settings.input_dir_emo_corpora + 'isear/' + name_file + '.csv', delimiter=',')
 # Remove 'No response' row value in isear.csv
-df = df[~df[1].str.contains("NO RESPONSE")]
-# keep only five emotions (anger, disgust, fear, joy and sadness)
-df = df[~df[0].str.contains('guilt')]
-df = df[~df[0].str.contains('shame')]
+#df['Field1']
+#df['SIT']
+if name_file == 'DATA':
+	df = df[['Field1','SIT']]
 
-df[2] = pd.Categorical(df[0]).codes
-#print(pd.Categorical(df[0]))
-classes = len(pd.Categorical(df[0]).categories)
-#print(len(classes))
-#exit()
-# convert numeric value back to string
-#pd.Categorical(df[0]).categories[1]
+	df = df[~df['SIT'].str.contains('no response')]
+	# keep only five emotions (anger, disgust, fear, joy and sadness)
+	df = df[~df['Field1'].str.contains('guilt')]
+	df = df[~df['Field1'].str.contains('shame')]
+	df['labels'] = pd.Categorical(df['Field1']).codes
+	classes = len(pd.Categorical(df['labels']).categories)
 
+	train, test = train_test_split(df, test_size=0.2, random_state=42)
 
-train, test = train_test_split(df, test_size=0.2, random_state=42)
+	x_train = np.asarray([sent.lower() for sent in train['SIT']])
+	y_train = np.asarray(train['Field1'])
+	x_test = np.asarray([sent.lower() for sent in test['SIT']])
+	y_test = np.asarray(test['Field1'])
+else:
+	df = df[~df[1].str.contains("NO RESPONSE")]
+	# keep only five emotions (anger, disgust, fear, joy and sadness)
+	df = df[~df[0].str.contains('guilt')]
+	df = df[~df[0].str.contains('shame')]
+	df[2] = pd.Categorical(df[0]).codes
+	classes = len(pd.Categorical(df[2]).categories)
 
-x_train = np.asarray([sent.lower() for sent in train[1]])
-y_train = np.asarray(train[2])
-x_test = np.asarray([sent.lower() for sent in test[1]])
-y_test = np.asarray(test[2])
+	train, test = train_test_split(df, test_size=0.2, random_state=42)
+
+	x_train = np.asarray([sent.lower() for sent in train[0]])
+	y_train = np.asarray(train[2])
+	x_test = np.asarray([sent.lower() for sent in test[0]])
+	y_test = np.asarray(test[2])
+
 
 '''print(np.shape(x_train))
 print(np.shape(y_train))

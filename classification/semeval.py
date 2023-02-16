@@ -76,10 +76,11 @@ x_test = pad_sequences(x_test, max_len_input, padding='pre', truncating='post')
 word2vec = {}
 #path = settings.dir_embeddings_glove #'/home/carolina/Documents/sota/Emotional-Embedding-master/counter_fitted_vectors-0.txresults/counter_fitted_vectors-0.txt'
 #path = '/home/carolina/corpora/embeddings/emotions_embedings/sawe-tanh-pca-100-glove.txt'
-emb_type = 'combined_class_reg_full_matrix'#'combined_class_reg__full_matrix' # sub_clue, emo_lex
+emb_type = 'sent_emb_glove_vad_mms_dot_product_hstack_plus_bias_relu_pca'#'combined_class_reg_full_matrix'#'combined_class_reg__full_matrix' # sub_clue, emo_lex
 #path = settings.dir_embeddings_word2vec 
 #path = '/home/carolina/Documents/sota/counter-fitting-master/results/counter_fitted_vectors.txt'
-path = '/home/carolina/embeddings/dense_model/emb/last_version/' + emb_type + '.txt'
+#path = '/home/carolina/embeddings/dense_model/emb/last_version/' + emb_type + '.txt'
+path = '/home/carolina/embeddings/dense_model/emb/results_training/' + emb_type + '.txt'
 if emb_type != 'word2vec':
 	for line in open(path):
 		values = line.split()

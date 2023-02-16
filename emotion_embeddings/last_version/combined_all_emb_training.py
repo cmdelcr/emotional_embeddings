@@ -5,7 +5,7 @@ import numpy as np
 from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import OneHotEncoder
-from sklearn.metrics import precision_score, recall_score, f1_score, accuracy_score, r2_score, mean_absolute_error
+from sklearn.metrics import precision_score, recall_score, f1_score, accuracy_score, r2_score, mean_absolute_error, mean_squared_error
 from sklearn.metrics import multilabel_confusion_matrix
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.manifold import Isomap
@@ -22,6 +22,7 @@ from tensorflow.keras.utils import plot_model
 from tensorflow.keras.losses import BinaryCrossentropy
 from tensorflow.keras.backend import epsilon
 from tensorflow.keras.metrics import Accuracy
+from tensorflow.keras.metrics import binary_crossentropy
 #from DenseModel import DenseModel
 from sklearn import preprocessing	
 
@@ -34,11 +35,11 @@ from util_combined import *
 import settings
 
 emb_type = 'glove'
-type_matrix_emb = 'full' #[lexicons, full]
+type_matrix_emb = 'lexicons' #[lexicons, full]
 out_type_matrix_emb = 'lexicons' #[lexicons, full]
 class_weights = {}
 
-
+#weighted categorical cross entropy
 class Custom_Weighted_CE_Loss(tf.keras.losses.Loss):
 	def __init__(self):
 		super().__init__()
@@ -57,45 +58,59 @@ class Custom_Weighted_CE_Loss(tf.keras.losses.Loss):
 		return loss
 
 def def_weigths(arr_class_counter):
-	global class_weights
 	positive_weights = {}
 	negative_weights = {}
 
 	for idx in range(len(arr_class_counter)):
-		positive_weights[idx] = np.sum(arr_class_counter) / (2 * arr_class_counter[idx])
-		negative_weights[idx] = np.sum(arr_class_counter) / (2 * (np.sum(arr_class_counter) - arr_class_counter[idx]))
+		positive_weights[idx] = np.sum(arr_class_counter) / (len(arr_class_counter) * arr_class_counter[idx])
+		negative_weights[idx] = np.sum(arr_class_counter) / ((len(arr_class_counter) * np.sum(arr_class_counter)) -arr_class_counter[idx])
 		
 	class_weights['positive_weights'] = positive_weights
 	class_weights['negative_weights'] = negative_weights
 
+	return class_weights
 
-def custom_loss(y_true, y_logit):
-    '''
-    Multi-label cross-entropy
-    * Required "Wp", "Wn" as positive & negative class-weights
-    y_true: true value
-    y_logit: predicted value
-    '''
-    loss = float(0)
-    y_true = tf.cast(y_true, dtype=tf.float32)
-    
-    for i, key in enumerate(class_weights['positive_weights'].keys()):
-        first_term = class_weights['positive_weights'][key] * y_true[i] * tf.math.log(y_logit[i] + epsilon())
-        second_term = class_weights['negative_weights'][key] * (1 - y_true[i]) * tf.math.log(1 - y_logit[i] + epsilon())
-        loss -= (first_term + second_term)
-    return loss
+
+def def_class_weight(arr_class_counter):
+	arr_class = {}
+	for idx in range(len(arr_class_counter)):
+		#n_samples / (n_classes * n_samplesj)
+		arr_class[idx] = np.sum(arr_class_counter) / (len(arr_class_counter) * arr_class_counter[idx])
+
+	print('class_weight: ', arr_class)
+	#exit()
+	return arr_class
+
+#weighted binary cross entropy
+class Custom_Loss(tf.keras.losses.Loss):
+	def __init__(self):
+		super().__init__()
+
+	def __init__(self, class_weights):
+		super().__init__()
+		self.class_weights = class_weights
+
+	def call(self, y_true, y_pred):		
+		loss = float(0)
+		y_true = tf.cast(y_true, dtype=tf.float32)
+		bce = binary_crossentropy(y_true, y_pred)
+		weighted_bce = tf.reduce_mean(bce * self.class_weights)
+
+		return weighted_bce
 
 def create_model(input_shape, output_classification_size, output_classification_size_emo):
 	input_ = Input(shape=(input_shape,), name='input_layer')
-	hidden_shared_layer = Dense(100, activation='relu', name='hidden_shared_layer')#, kernel_initializer='he_normal') 
+	hidden_shared_layer = Dense(200, activation='relu', name='hidden_shared_layer')#, kernel_initializer='he_normal') 
 	x1 = hidden_shared_layer(input_)
 
 	#layer regression vad
-	hidden_layer_vad = Dense(200, activation='relu', name='hidden_layer_vad')
+	hidden_layer_vad = Dense(150, activation='relu', name='hidden_layer_vad_1')
 	x_vad = hidden_layer_vad(x1)
+	hidden_layer_vad = Dense(200, activation='relu', name='hidden_layer_vad_2')
+	x_vad = hidden_layer_vad(x_vad)
 
 	# layers classification sub_clues
-	hidden_layer_sub = Dense(80, activation='relu', name='hidden_layer_sub',
+	hidden_layer_sub = Dense(80, activation='tanh', name='hidden_layer_sub',
 		kernel_regularizer=regularizers.l2(0.0001), bias_regularizer=regularizers.l2(0.0001)) 
 	x_sub = hidden_layer_sub(x1)
 
@@ -117,12 +132,12 @@ def create_model(input_shape, output_classification_size, output_classification_
 	return model
 
 def compile_model(model, arr_class_counter, arr_class_counter_emo, multi_label, multi_label_emo):
-	def_weigths(arr_class_counter_emo)
+	
 	model.compile(
 			loss=['mean_squared_error', 
 					'categorical_crossentropy' if not multi_label else BinaryCrossentropy(),
 					'categorical_crossentropy' if not multi_label else BinaryCrossentropy()
-					#Custom_Weighted_CE_Loss(def_class_weight(arr_class_counter_emo))#'categorical_crossentropy' if not multi_label_emo else 'binary_crossentropy'
+					#Custom_Loss(list(def_class_weight(arr_class_counter_emo).values()))#'categorical_crossentropy' if not multi_label_emo else 'binary_crossentropy'
 					],
 			#Custom_Weighted_CE_Loss(def_class_weight(arr_class_counter))], # 'categorical_crossentropy'
 			optimizer='adam',#Adam(learning_rate=0.001),#'adam',
@@ -132,15 +147,6 @@ def compile_model(model, arr_class_counter, arr_class_counter_emo, multi_label, 
 
 	return model
 
-def def_class_weight(arr_class_counter):
-	arr_class = {}
-	for idx in range(len(arr_class_counter)):
-		#n_samples / (n_classes * n_samplesj)
-		arr_class[idx] = np.sum(arr_class_counter) / (len(arr_class_counter) * arr_class_counter[idx])
-
-	print('class_weight: ', arr_class)
-	#exit()
-	return arr_class
 
 def train_model(model, x_train, y_vad, y_sub, y_emo_lex, type_lex):
 	print('Training model...')
@@ -211,6 +217,7 @@ pred_reg, pred_class_sub, pred_class_emo = model.predict(embedding_matrix)
 r2 = r2_score(y_vad, pred_reg)
 print('------------------------------------')
 print('regression vad...')
+print('mse', mean_squared_error(y_vad, pred_reg))
 print('mae', mean_absolute_error(y_vad, pred_reg))
 print('r2: ', r2)
 #cf_matrix = confusion_matrix(labels=y_vad, predictions=pred_reg, num_classes=2)

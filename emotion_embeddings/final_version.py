@@ -39,11 +39,22 @@ arr_type_matrix_emb = ['full']
 
 
 def create_model(input_shape, num_units, activation_function):
-	input_ = Input(shape=(input_shape,))
-	dense = Dense(num_units, activation='relu') 
+	input_ = Input(shape=(input_shape,), name='input_layer')
+	hidden_shared_layer = Dense(200, activation='relu', name='hidden_shared_layer')#, kernel_initializer='he_normal') 
+	x1 = hidden_shared_layer(input_)
+	#dense = Dense(num_units, activation='relu') 
 		#activation='tanh', kernel_regularizer=regularizers.l2(0.01), bias_regularizer=regularizers.l2(0.01))
-	x1 = dense(input_)
-	output = Dense(3, activation='linear')(x1)
+	#x1 = dense(input_)
+
+	#layer regression vad
+	hidden_layer_vad = Dense(200, activation='relu', name='hidden_layer_vad_1')
+	x_vad = hidden_layer_vad(x1)
+	hidden_layer_vad = Dense(300, activation='relu', name='hidden_layer_vad_2')
+	x_vad = hidden_layer_vad(x_vad)
+
+
+
+	output = Dense(3, activation='linear')(x_vad)
 
 	model = Model(inputs=input_, outputs=output)
 
@@ -53,8 +64,8 @@ def compile_model(model, loss_='mean_squared_error', optimizer_='adam'):
 	# regular categorical_crossentropy requires one_hot_encoding for the targets, 
 	#sparse_categorical_crossentropy is used to don't use the conversion
 	model.compile(
-			loss=loss_,
-			optimizer=optimizer_,#Adam(lr=0.001),
+			loss='mean_squared_error',
+			optimizer=Adam(lr=0.001),
 			metrics=[tf.keras.metrics.RootMeanSquaredError()]
 	)
 
@@ -64,8 +75,8 @@ def train_model(model, x_train, y_train, batch_size_=512, epochs_=200, verbose=0
 	print('Training model...')
 	r = model.fit(x_train, 
 		y_train, 
-		batch_size=batch_size_, 
-		epochs=epochs_, 
+		batch_size=128, 
+		epochs=100, 
 		verbose=1)
 
 	return r
@@ -110,7 +121,7 @@ def merge_semantic_end_emotion_embeddings(model, embedding_matrix, act='tanh', a
 	#print('size after dot product: ', np.shape(senti_embedding))
 	#print('before apply relu')
 	#print(senti_embedding[0])
-	senti_embedding = np.apply_along_axis(relu, 0, senti_embedding)
+	#senti_embedding = np.apply_along_axis(relu, 0, senti_embedding)
 
 	#print('after apply relu')
 	#print('size after appy tanh', np.shape(senti_embedding))
@@ -229,6 +240,7 @@ for emb_type in settings.embedding_type:
 
 				#full_mms_dot_product_hstack_plus_bias_relu_pca
 				name_file = 'sent_emb_' + emb_type + '_' + type_matrix_emb 	+ '_mms_dot_product_hstack_plus_bias_relu_pca'
+				print(name_file)
 				with open(os.path.join('/home/carolina/embeddings/dense_model/emb/results_training', name_file + '.txt'), 'w') as f:
 					f.write('mean_squared_error: %.6f\nroot_mean_squared_error: %.6f\nr2_score: %.6f' % 
 						(results[0], results[1], r2))
