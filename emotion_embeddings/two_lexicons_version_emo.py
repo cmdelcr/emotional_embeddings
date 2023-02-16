@@ -80,7 +80,7 @@ def train_model(model, x_train, y_train, arr_class_counter, batch_size_=256, epo
 		y_train, 
 		batch_size=batch_size_, 
 		epochs=epochs_, 
-		class_weight=def_class_weight(arr_class_counter),
+		#class_weight=def_class_weight(arr_class_counter),
 		verbose=1)
 
 	return r
@@ -250,6 +250,7 @@ for emb_type in settings.embedding_type:
 				model = compile_model(model)
 				r = train_model(model, embedding_matrix, y_train_, arr_class_counter, epochs_=epoch)
 				results = evaluate_model(model, y_train_)
+				print(results)
 				pred = model.predict(embedding_matrix)
 				pred = pred.round()
 				#exit()

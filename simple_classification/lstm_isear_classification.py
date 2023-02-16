@@ -103,7 +103,7 @@ word2vec = {}
 lexico = 'nrc_vad'
 for lstm_dim_vec in lstm_dim_arr:
 #lstm_dim_vec = 300
-	for line in open('/home/carolina/embeddings/dense_model/emb/sent_emb_glove_100_tanh_e300_pca_full_full_matrix.txt'):
+	for line in open('/home/carolina/embeddings/dense_model/emb/last_version/combined_class_reg_full_matrix.txt'):
 	#for line in open(settings.local_dir_embeddings + 'dense_model_lem/emb_nrc_vad_lem_not_scaled%d.txt' % lstm_dim_vec):	
 	#for line in open(settings.local_dir_embeddings + 'sota/mewe_embeddings/emo_embeddings.txt'):
 	#for line in open(settings.local_dir_embeddings + mode[0] + '/emo_int_%d_lem.txt' % lstm_dim_vec):
@@ -170,9 +170,9 @@ for lstm_dim_vec in lstm_dim_arr:
 	#for run in range(10):
 	model = Model(inputs=input_, outputs=output)
 	model.compile('adam', 'categorical_crossentropy', metrics=['accuracy'])
-	model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, verbose=1)
+	model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, verbose=0)
 
-	pred = model.predict(x_test, verbose=1)
+	pred = model.predict(x_test, verbose=0)
 
 	y_test_ = [np.argmax(y, axis=0) for y in y_test]
 	pred = [np.argmax(y, axis=0) for y in pred]

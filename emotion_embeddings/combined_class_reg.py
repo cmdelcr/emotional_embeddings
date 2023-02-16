@@ -34,11 +34,12 @@ type_matrix_emb = 'lexicons' #[lexicons, full]
 
 def create_model(input_shape, output_classification_size):
 	input_ = Input(shape=(input_shape,))
-	hidden_shared_layer = Dense(100, activation='relu', kernel_initializer='he_normal') 
+	hidden_shared_layer = Dense(100, activation='relu', #kernel_initializer='he_normal',
+				kernel_regularizer=regularizers.l2(1e-5), bias_regularizer=regularizers.l2(1e-5)) 
 	x1 = hidden_shared_layer(input_)
-	hidden_layer = Dense(50, activation='relu') 
+	hidden_layer = Dense(50, activation='relu', kernel_regularizer=regularizers.l2(1e-5), bias_regularizer=regularizers.l2(1e-5)) 
 	x2 = hidden_layer(x1)
-	hidden_layer1 = Dense(10, activation='relu') 
+	hidden_layer1 = Dense(10, activation='relu', kernel_regularizer=regularizers.l2(1e-5), bias_regularizer=regularizers.l2(1e-5)) 
 	x2 = hidden_layer1(x2)
 
 	output_regression = Dense(3, activation='linear')(x1)

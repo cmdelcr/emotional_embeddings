@@ -5,18 +5,23 @@ import numpy as np
 from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import OneHotEncoder
-from sklearn.metrics import precision_score, recall_score, f1_score, accuracy_score, r2_score
+from sklearn.metrics import precision_score, recall_score, f1_score, accuracy_score, r2_score, mean_absolute_error
+from sklearn.metrics import multilabel_confusion_matrix
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.manifold import Isomap
 from sklearn.manifold import LocallyLinearEmbedding
 from gensim import models
 
 import tensorflow as tf
+from tensorflow.math import confusion_matrix
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Embedding, Input, LSTM, Dense, Bidirectional, Dropout
 from tensorflow.keras import regularizers
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.utils import plot_model
+from tensorflow.keras.losses import BinaryCrossentropy
+from tensorflow.keras.backend import epsilon
+from tensorflow.keras.metrics import Accuracy
 #from DenseModel import DenseModel
 from sklearn import preprocessing	
 
@@ -31,31 +36,99 @@ import settings
 emb_type = 'glove'
 type_matrix_emb = 'full' #[lexicons, full]
 out_type_matrix_emb = 'lexicons' #[lexicons, full]
+class_weights = {}
 
-def create_model(input_shape, output_classification_size):
-	input_ = Input(shape=(input_shape,))
-	hidden_shared_layer = Dense(100, activation='relu', kernel_initializer='he_normal') 
+
+class Custom_Weighted_CE_Loss(tf.keras.losses.Loss):
+	def __init__(self):
+		super().__init__()
+
+	def __init__(self, class_weights):
+		super().__init__()
+		self.class_weights = class_weights
+
+	def call(self, y_true, y_pred):		
+		log_y_pred = tf.math.log(y_pred + epsilon())
+		y_true = tf.cast(y_true, dtype=tf.float32)
+		elements = tf.math.multiply_no_nan(x=log_y_pred, y=y_true + epsilon())
+		#elements = tf.math.multiply_no_nan(x=elements, y=self.class_weights)
+		loss = -tf.reduce_mean(tf.reduce_sum(elements,axis=1))
+
+		return loss
+
+def def_weigths(arr_class_counter):
+	global class_weights
+	positive_weights = {}
+	negative_weights = {}
+
+	for idx in range(len(arr_class_counter)):
+		positive_weights[idx] = np.sum(arr_class_counter) / (2 * arr_class_counter[idx])
+		negative_weights[idx] = np.sum(arr_class_counter) / (2 * (np.sum(arr_class_counter) - arr_class_counter[idx]))
+		
+	class_weights['positive_weights'] = positive_weights
+	class_weights['negative_weights'] = negative_weights
+
+
+def custom_loss(y_true, y_logit):
+    '''
+    Multi-label cross-entropy
+    * Required "Wp", "Wn" as positive & negative class-weights
+    y_true: true value
+    y_logit: predicted value
+    '''
+    loss = float(0)
+    y_true = tf.cast(y_true, dtype=tf.float32)
+    
+    for i, key in enumerate(class_weights['positive_weights'].keys()):
+        first_term = class_weights['positive_weights'][key] * y_true[i] * tf.math.log(y_logit[i] + epsilon())
+        second_term = class_weights['negative_weights'][key] * (1 - y_true[i]) * tf.math.log(1 - y_logit[i] + epsilon())
+        loss -= (first_term + second_term)
+    return loss
+
+def create_model(input_shape, output_classification_size, output_classification_size_emo):
+	input_ = Input(shape=(input_shape,), name='input_layer')
+	hidden_shared_layer = Dense(100, activation='relu', name='hidden_shared_layer')#, kernel_initializer='he_normal') 
 	x1 = hidden_shared_layer(input_)
-	hidden_layer = Dense(50, activation='relu') 
-	x2 = hidden_layer(x1)
-	hidden_layer1 = Dense(10, activation='relu') 
-	x2 = hidden_layer1(x2)
 
-	output_regression = Dense(3, activation='linear')(x1)
-	output_classification = Dense(output_classification_size, activation='sigmoid')(x2)
+	#layer regression vad
+	hidden_layer_vad = Dense(200, activation='relu', name='hidden_layer_vad')
+	x_vad = hidden_layer_vad(x1)
 
-	model = Model(inputs=[input_],outputs=[output_regression,output_classification])
+	# layers classification sub_clues
+	hidden_layer_sub = Dense(80, activation='relu', name='hidden_layer_sub',
+		kernel_regularizer=regularizers.l2(0.0001), bias_regularizer=regularizers.l2(0.0001)) 
+	x_sub = hidden_layer_sub(x1)
+
+	#layer classification_emo_lex
+	hidden_layer_emo = Dense(50, activation='relu', name='hidden_layer_emo_1')#, 
+		#kernel_regularizer=regularizers.l2(0.0001), bias_regularizer=regularizers.l2(0.0001)) 
+	x_emo = hidden_layer_emo(x1)
+	hidden_layer_emo_2 = Dense(10, activation='relu', name='hidden_layer_emo_2')#, 
+		#kernel_regularizer=regularizers.l2(0.0001), bias_regularizer=regularizers.l2(0.0001)) 
+	x_emo = hidden_layer_emo_2(x_emo)
+
+	output_regression = Dense(3, activation='linear', name='output_reg_vad')(x_vad)
+	output_class_sub = Dense(output_classification_size, activation='sigmoid', name='output_class_sub')(x_sub)
+	output_class_emo_lex = Dense(output_classification_size_emo, activation='sigmoid', name='output_class_emo_lex')(x_emo)
+
+	model = Model(inputs=[input_],outputs=[output_regression, output_class_sub, output_class_emo_lex])
 
 
 	return model
 
-def compile_model(model):
+def compile_model(model, arr_class_counter, arr_class_counter_emo, multi_label, multi_label_emo):
+	def_weigths(arr_class_counter_emo)
 	model.compile(
-			loss=['mean_squared_error','categorical_crossentropy'],
-			optimizer='adam',#Adam(lr=0.001),
-			metrics=[tf.keras.metrics.RootMeanSquaredError(), 'accuracy']
+			loss=['mean_squared_error', 
+					'categorical_crossentropy' if not multi_label else BinaryCrossentropy(),
+					'categorical_crossentropy' if not multi_label else BinaryCrossentropy()
+					#Custom_Weighted_CE_Loss(def_class_weight(arr_class_counter_emo))#'categorical_crossentropy' if not multi_label_emo else 'binary_crossentropy'
+					],
+			#Custom_Weighted_CE_Loss(def_class_weight(arr_class_counter))], # 'categorical_crossentropy'
+			optimizer='adam',#Adam(learning_rate=0.001),#'adam',
+			metrics=[tf.keras.metrics.RootMeanSquaredError(), Accuracy(name='acc_sub'), Accuracy(name='acc_emo_lex')]
 	)
-	plot_model(model, to_file='model.png', show_shapes=True)
+	plot_model(model, to_file='model.png', show_shapes=True, show_layer_names=True)
 
 	return model
 
@@ -69,38 +142,25 @@ def def_class_weight(arr_class_counter):
 	#exit()
 	return arr_class
 
-def train_model(model, x_train, y_vad, y_sub, arr_class_counter, type_lex):
+def train_model(model, x_train, y_vad, y_sub, y_emo_lex, type_lex):
 	print('Training model...')
-
-	'''checkpoint_filepath = 'tmp/checkpoint_' + type_lex
-	model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
-			filepath=checkpoint_filepath,
-			save_weights_only=True,
-			monitor='val_accuracy',
-			mode='max',
-			save_best_only=True)
-
-
-	early_stop = EarlyStopping(monitor='val_accuracy', patience=10)'''
-
-	#r = model.fit(x_train, y_train, validation_data=(x_dev, y_dev), 
-	#	batch_size=512, epochs=50, verbose=0, callbacks=[model_checkpoint_callback, early_stop])
 
 
 	r = model.fit(x_train, 
-		[y_vad, y_sub], 
-		batch_size=64, 
-		epochs=150, 
+		[y_vad, y_sub, y_emo_lex], 
+		batch_size=128, 
+		epochs=100,#150 
 		#class_weight=[{}, def_class_weight(arr_class_counter)],
 		#callbacks=[model_checkpoint_callback, early_stop],
 		verbose=0)
 
 	return r
 
-def evaluate_model(model, y_vad, y_sub, plot_results=False):
-	results_regression, results_classification = model.evaluate(embedding_matrix, [y_vad, y_sub])
+def evaluate_model(model, y_vad, y_sub, y_emo_lex, plot_results=False):
+	results_regression, results_class_sub, results_class_emo = model.evaluate(embedding_matrix, [y_vad, y_sub, y_emo_lex])
 	print("train loss, train rmse:", results_regression)
-	print("train loss, train accuracy:", results_classification)
+	print("Sub_clues: train loss, train accuracy:", results_class_sub)
+	print("Emo_lex: train loss, train accuracy:", results_class_emo)
 
 	if plot_results:
 		plt.plot(r.history['loss'], label='loss')
@@ -118,39 +178,62 @@ def evaluate_model(model, y_vad, y_sub, plot_results=False):
 
 print('Loading vad lexicon...')
 dict_vad = read_vad_file()
-#print('Loading subjectivity_clues lexicon...')
-#type_lex = 'sub_clues'
-#dict_sub, arr_class_counter = read_subjectivity_clues()
-print('Loading emo_lex lexicon...')
+type_lex = 'sub_clues'
+multi_label=True
+dict_sub, arr_class_counter = read_subjectivity_clues(multi_label=multi_label)
 type_lex = 'emo_lex'
-dict_emo_lex, arr_class_counter = read_subjectivity_clues()
+multi_label_emo = True
+dict_emo_lex, arr_class_counter_emo = read_emo_lex_file(only_emotions=True, multi_label=multi_label_emo)
 
 word2vec = read_embeddings(emb_type)
-word2idx, vocabulary = getting_lemmas(emb_type, dict_vad, dict_emo_lex, word2vec)
+word2idx, vocabulary = getting_lemmas(emb_type, dict_vad, dict_sub, dict_emo_lex, word2vec)
 
 print('-----------------------------------------')
 print('***Filling pre-trained embeddings...')
-embedding_matrix, vocabulary_, y_vad, y_sub = filling_embeddings(
-			word2idx, word2vec, vocabulary, dict_vad, dict_emo_lex, emb_type, type_matrix_emb, type_lex)
+embedding_matrix, vocabulary_, y_vad, y_sub, y_emo_lex = filling_embeddings(
+			word2idx, word2vec, vocabulary, dict_vad, dict_sub, dict_emo_lex, emb_type, type_matrix_emb, type_lex)
 print('size_embeddings: ', np.shape(embedding_matrix))
+
+
+#minmax_scale = preprocessing.MinMaxScaler(feature_range=(-1, 1))
+#y_vad = minmax_scale.fit_transform(y_vad)
 
 
 print('--------------------------')
 print('Creating the model...')
-model = create_model(len(embedding_matrix[0]), len(y_sub[0]))
-model = compile_model(model)
+model = create_model(len(embedding_matrix[0]), len(y_sub[0]), len(y_emo_lex[0]))
+model = compile_model(model, arr_class_counter, arr_class_counter_emo, multi_label, multi_label_emo)
 
-r = train_model(model, embedding_matrix, y_vad, y_sub, arr_class_counter, type_lex)
+r = train_model(model, embedding_matrix, y_vad, y_sub, y_emo_lex, type_lex)
 #results_reg, results_class = evaluate_model(model, y_train_)
-pred_reg, pred_class = model.predict(embedding_matrix)
+pred_reg, pred_class_sub, pred_class_emo = model.predict(embedding_matrix)
 
 r2 = r2_score(y_vad, pred_reg)
 print('------------------------------------')
+print('regression vad...')
+print('mae', mean_absolute_error(y_vad, pred_reg))
 print('r2: ', r2)
+#cf_matrix = confusion_matrix(labels=y_vad, predictions=pred_reg, num_classes=2)
+#cf_matrix = np.array(cf_matrix)
+#print(cf_matrix)
 
-pred_class = pred_class.round()	
-acc = accuracy_score(y_sub, y_pred=pred_class)
+print('------------------------------------')
+print('classification sub_clues...')
+pred_class_sub = pred_class_sub.round()	
+acc = accuracy_score(y_sub, y_pred=pred_class_sub)
 print('accuracy: ', acc)
+cf_matrix = multilabel_confusion_matrix(y_true=y_sub, y_pred=pred_class_sub)
+cf_matrix = np.array(cf_matrix)
+print(cf_matrix)
+
+print('------------------------------------')
+print('classification emo_lex...')
+pred_class_emo = pred_class_emo.round()	
+acc = accuracy_score(y_emo_lex, y_pred=pred_class_emo)
+print('accuracy: ', acc)
+cf_matrix = multilabel_confusion_matrix(y_true=y_emo_lex, y_pred=pred_class_emo)
+cf_matrix = np.array(cf_matrix)
+print(cf_matrix)
 
 
 senti_embedding = merge_semantic_end_emotion_embeddings(model, embedding_matrix, type_matrix_emb)
