@@ -9,7 +9,7 @@ import settings
 
 import numpy as np
 
-emotions = ['negative', 'positive']
+emotions = ['negative', 'positive', 'neutral']
 punctuation_list = list(punctuation)
 
 def remove_unecesary_data(sent):
@@ -40,13 +40,15 @@ def read_datasets(dir_datasets):
 	datasets = {'train': [], 'dev': [], 'test': []}
 	
 	for file in os.listdir(dir_datasets):
-		key = re.sub('.tsv', '', file)
-		df = pd.read_csv(dir_datasets + file, sep='\t')
+		if re.sub('.txt', '', file) in datasets.keys():
+			key = re.sub('.txt', '', file)
+			df = pd.read_csv(dir_datasets + file, sep='\t', header=None)
+			df[3] = pd.Categorical(df[1]).codes
+			classes = pd.Categorical(df[1]).categories
 
-		for index, row in df.iterrows():
-			if str(row[2]) in emotions:
-				datasets[key].append((emotions.index(str(row[2])), str(row[3])))
-	
+			for index, row in df.iterrows():
+				datasets[key].append((row[3], str(row[2])))
+				
 	y_train, x_train = zip(*datasets['train'])
 	y_dev, x_dev = zip(*datasets['dev'])
 	y_test, x_test = zip(*datasets['test'])
@@ -63,7 +65,7 @@ def read_datasets(dir_datasets):
 	y_test = np.asarray(y_test)
 
 
-	return y_train, x_train, y_dev, x_dev, y_test, x_test
+	return y_train, x_train, y_dev, x_dev, y_test, x_test, classes
 
 def read_embeddings(type_emb='glove'):
 	print('\n-----------------------------------------')

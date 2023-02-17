@@ -121,7 +121,7 @@ def merge_semantic_end_emotion_embeddings(model, embedding_matrix, act='tanh', a
 	#print('size after dot product: ', np.shape(senti_embedding))
 	#print('before apply relu')
 	#print(senti_embedding[0])
-	#senti_embedding = np.apply_along_axis(relu, 0, senti_embedding)
+	senti_embedding = np.apply_along_axis(np.tanh, 0, senti_embedding)
 
 	#print('after apply relu')
 	#print('size after appy tanh', np.shape(senti_embedding))

@@ -1,150 +1,161 @@
 import os
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-
-import pandas as pd
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
+import tensorflow as tf
 
 import numpy as np
 from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import OneHotEncoder
-from sklearn.svm import SVC
-from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import precision_score, recall_score, f1_score, accuracy_score, r2_score
+from sklearn import preprocessing
+from sklearn.preprocessing import OneHotEncoder
+from sklearn.metrics import multilabel_confusion_matrix
+from sklearn.svm import SVC
+from sklearn.model_selection import cross_val_score, GridSearchCV
 
+import time
+import random
+import pandas as pd
+import seaborn as sn
+import matplotlib.pyplot as plt
+
+from tensorflow.math import confusion_matrix
+from tensorflow.keras.models import Model, Sequential
+from tensorflow.keras.layers import Embedding, Input, LSTM, Dense, Bidirectional, Dropout, GRU
+from tensorflow.keras import regularizers
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.preprocessing.text import Tokenizer
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 
-from nltk.tokenize import word_tokenize
+from tensorflow.keras.callbacks import EarlyStopping
 
-embedding_dim = 300
-
-
-df = pd.read_csv('../util/isear.csv',header=None)
-# Remove 'No response' row value in isear.csv
-df = df[~df[1].str.contains("NO RESPONSE")]
-#print(df[0].unique())
-#exit()
-
-input_sequences = []
-for val in df[1]:
-	input_sequences.append(word_tokenize(val))
+from gensim.models import KeyedVectors
 
 
-dict_vocab = {}
-word2idx = {}
-counter = 1
-for sent in input_sequences:
-	for word in sent:
-		if word not in word2idx:
-			word2idx[word] = counter
+import matplotlib.pyplot as plt
+import re
+
+from collections import Counter
+import statistics
+
+from util import *
+
+
+dir_datasets = '/home/carolina/corpora/emotion_datasets/semeval/semeval_2017/'
+
+
+
+def get_embeddings(input_arr, word2vec, idx2word):
+	idx = 0
+	embedding_matrix = np.zeros((len(input_arr), 300))
+	for sent in input_arr:
+		counter = 0
+		arr_emb = np.zeros(300)
+		for word_index in sent:
+			vec = word2vec.get(idx2word[word_index])
+			arr_emb = arr_emb + (vec if vec is not None else np.random.uniform(-0.25, 0.25, 300))
 			counter += 1
-		if word in dict_vocab:
-			dict_vocab[word] += 1
-		else:
-			dict_vocab[word] = 1
+		embedding_matrix[idx] = arr_emb / counter
+		idx += 1
 
-input2idx = []
-for sent in input_sequences:
-	vec = []
-	for word in sent:
-		vec.append(word2idx[word])
-	input2idx.append(vec)
+	return embedding_matrix
 
-df['class_int'] = pd.Categorical(df[0]).codes
-#pd.Categorical(df[0]).categories[int_label]
-print('Found %s unique input tokens.' % len(dict_vocab))
 
-# determine maximum length input sequence
-max_len_input = max(len(s) for s in input_sequences)
-print('max_len_input', max_len_input)
-exit()
-inputs = pad_sequences(input2idx, maxlen=max_len_input)
-# when padding is not specified it takes the default at the begining of the sentence
-#print("inputs.shape:", inputs.shape)
+y_train, x_train, y_dev, x_dev, y_test, x_test, classes = read_datasets(dir_datasets)
 
-# store all the pre-trained word vectors
+
+tokenizer = Tokenizer()
+tokenizer.fit_on_texts(x_train + x_dev)
+x_train = tokenizer.texts_to_sequences(x_train)
+x_dev = tokenizer.texts_to_sequences(x_dev)
+x_test = tokenizer.texts_to_sequences(x_test)
+
+# get the word to index mapping for input language
+word2idx = tokenizer.word_index
+idx2word = {y: x for x, y in word2idx.items()}
+
+print('Found %s unique input tokens.' % len(word2idx))
+
+
+##############################################################################################################3
 word2vec = {}
-lexico = 'nrc_vad'
-#for line in open('../emotion_embeddings/embeddings/senti-embedding-modif/emb_' + lexico + '_%ddim_2.txt' % embedding_dim):
-#for line in open(os.path.join('../util/glove.6B.%sd.txt' % embedding_dim)):
-for line in open('../util/ewe_uni.txt'):
-	values = line.split()
-	word2vec[values[0]] = np.asarray(values[1:], dtype='float32')
-print("Number of word embeddings: ", len(word2vec))
-
+path = '/home/carolina/corpora/embeddings/glove/glove.42B.300d.txt'
+emb_type = 'glove'
+if emb_type != 'word2vec':
+	for line in open(path):
+		values = line.split()
+		word2vec[str(values[0]).lower()] = np.asarray(values[1:], dtype='float32')
+else:
+	word2vec = KeyedVectors.load_word2vec_format(path, binary=True)
+print(path)
+count_missing_words = 0
 # prepare embedding matrix
 print('Filling pre-trained embeddings...')
-num_words = len(word2idx) + 1
-embedding_matrix = np.zeros((len(inputs), max_len_input, embedding_dim))
-#print(num_words)
-for word, i in word2idx.items():
-	#print(i)
-	embedding_vector = word2vec.get(word)
-	if embedding_vector is not None:
-		# words not found in embedding index will be all zeros.
-		embedding_matrix[i] = embedding_vector
-	else:
-		embedding_matrix[i] = np.random.uniform(-0.25, 0.25, embedding_dim)
+start_time = time.time()
+x_train = get_embeddings(x_train, word2vec, idx2word)
+x_dev = get_embeddings(x_dev, word2vec, idx2word)
+x_test = get_embeddings(x_test, word2vec, idx2word)
+print("Time filling embeddings: ", (time.time() - start_time))
 
 
+print('Starting classification...')
+start_time = time.time()
+svm_classifier = SVC(kernel='poly', C=1, degree=3)
+svm_classifier.fit(x_train,y_train)
+print('Training ended')
+print("Time training: ", (time.time() - start_time))
 
-# Perform one-hot encoding on df[0] i.e emotion
-#enc = OneHotEncoder()#handle_unknown='ignore')
-#outputs = enc.fit_transform(np.array(df[0]).reshape(-1,1)).toarray()
-outputs = list(df['class_int'])
+print('-----------------------------------------------------------------')
+start_time = time.time()
+pred_dev = svm_classifier.predict(x_dev)
+dev_accuracy = accuracy_score(y_dev, pred_dev)
+dev_f1 = f1_score(y_dev, pred_dev, average='weighted')
+print('Accuracy (dev): ', "%.2f" % (dev_accuracy*100))
+print('F1 (dev): ', "%.2f" % (dev_f1*100))
+print("Time predicting dev: ", (time.time() - start_time))
 
 
-# Split into train and test
-x_train, x_test, y_train, y_test = train_test_split(inputs, outputs, test_size=0.2, random_state=42)
+print('-----------------------------------------------------------------')
+start_time = time.time()
+pred_test = svm_classifier.predict(x_test)
+test_accuracy = accuracy_score(y_test, pred_test)
+test_f1 = f1_score(y_test, pred_test, average='weighted')
+print('Accuracy (test): ', "%.2f" % (test_accuracy*100))
+print('F1 (test): ', "%.2f" % (test_f1*100))
+print("Time predicting test: ", (time.time() - start_time))
 
-print('logistic regression:')
-lr = LogisticRegression(multi_class='ovr', solver='liblinear', max_iter=500)
-lr.fit(x_train, y_train)
 
-pred = lr.predict(x_test)
-#print(pred)
-#exit()
-#pred = np.where(pred > 0.5, 1, 0)
-
-#y_test_ = [np.argmax(y, axis=0) for y in y_test]
-#pred = [np.argmax(y, axis=0) for y in pred]
-
-precision = precision_score(y_true=y_test, y_pred=pred, average='macro')
-recall = recall_score(y_true=y_test, y_pred=pred, average='macro')
-f1 = f1_score(y_true=y_test, y_pred=pred, average='macro')
-acc = accuracy_score(y_true=y_test, y_pred=pred)
-r2 = r2_score(y_true=y_test, y_pred=pred)
-
+exit()
 
 #print('Lexico: ', lexico)
-#print('Emo_emb_size: ', lstm_dim_vec)
+lstm_dim_vec = 300
+print('Emo_emb_size: ', lstm_dim_vec)
 print('acc: ', acc)
 print('precision: ', precision)
 print('recall: ', recall)
 print('f1: ', f1)
-#print('r2: ', r2)
-print('------------------------------------------')
+arr_acc.append(acc)
+arr_precision.append(precision)
+arr_recall.append(recall)
+arr_f1.append(f1)
 
-print('SVM:')
-svm = SVC(random_state=0)
-svm.fit(x_train, y_train)
-
-pred = svm.predict(x_test)
-#pred = np.where(pred > 0.5, 1, 0)
-
-#y_test_ = [np.argmax(y, axis=0) for y in y_test]
-#pred = [np.argmax(y, axis=0) for y in pred]
-
-precision = precision_score(y_true=y_test, y_pred=pred, average='macro')
-recall = recall_score(y_true=y_test, y_pred=pred, average='macro')
-f1 = f1_score(y_true=y_test, y_pred=pred, average='macro')
-acc = accuracy_score(y_true=y_test, y_pred=pred)
-r2 = r2_score(y_true=y_test, y_pred=pred)
+cf_matrix = multilabel_confusion_matrix(y_true=y_test, y_pred=pred)
+cf_matrix = np.array(cf_matrix)
+#rows, columns = np.shape(cf_matrix)
+#path_cf = 'confusion_matrix'
+print(cf_matrix)
 
 
-#print('Lexico: ', lexico)
-#print('Emo_emb_size: ', lstm_dim_vec)
-print('acc: ', acc)
-print('precision: ', precision)
-print('recall: ', recall)
-print('f1: ', f1)
-#print('r2: ', r2)
+# loss
+plt.plot(r.history['loss'], label='loss')
+plt.plot(r.history['val_loss'], label='val_loss')
+plt.legend()
+plt.show()
+
+# accuracies
+plt.plot(r.history['accuracy'], label='acc')
+plt.plot(r.history['val_accuracy'], label='val_acc')
+plt.legend()
+plt.show()
+
+exit()

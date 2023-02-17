@@ -104,10 +104,10 @@ def create_model(input_shape, output_classification_size, output_classification_
 	x1 = hidden_shared_layer(input_)
 
 	#layer regression vad
-	hidden_layer_vad = Dense(150, activation='relu', name='hidden_layer_vad_1')
+	hidden_layer_vad = Dense(300, activation='relu', name='hidden_layer_vad_1')
 	x_vad = hidden_layer_vad(x1)
-	hidden_layer_vad = Dense(200, activation='relu', name='hidden_layer_vad_2')
-	x_vad = hidden_layer_vad(x_vad)
+	#hidden_layer_vad = Dense(200, activation='relu', name='hidden_layer_vad_2')
+	#x_vad = hidden_layer_vad(x_vad)
 
 	# layers classification sub_clues
 	hidden_layer_sub = Dense(80, activation='tanh', name='hidden_layer_sub',
@@ -115,7 +115,7 @@ def create_model(input_shape, output_classification_size, output_classification_
 	x_sub = hidden_layer_sub(x1)
 
 	#layer classification_emo_lex
-	hidden_layer_emo = Dense(50, activation='relu', name='hidden_layer_emo_1')#, 
+	hidden_layer_emo = Dense(30, activation='relu', name='hidden_layer_emo_1')#, 
 		#kernel_regularizer=regularizers.l2(0.0001), bias_regularizer=regularizers.l2(0.0001)) 
 	x_emo = hidden_layer_emo(x1)
 	hidden_layer_emo_2 = Dense(10, activation='relu', name='hidden_layer_emo_2')#, 
@@ -136,7 +136,7 @@ def compile_model(model, arr_class_counter, arr_class_counter_emo, multi_label, 
 	model.compile(
 			loss=['mean_squared_error', 
 					'categorical_crossentropy' if not multi_label else BinaryCrossentropy(),
-					'categorical_crossentropy' if not multi_label else BinaryCrossentropy()
+					'categorical_crossentropy' if not multi_label_emo else BinaryCrossentropy()
 					#Custom_Loss(list(def_class_weight(arr_class_counter_emo).values()))#'categorical_crossentropy' if not multi_label_emo else 'binary_crossentropy'
 					],
 			#Custom_Weighted_CE_Loss(def_class_weight(arr_class_counter))], # 'categorical_crossentropy'

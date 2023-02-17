@@ -188,6 +188,96 @@ def getting_lemmas(emb_type, dict_vad, dict_sub, dict_emo_lex, word2vec):
 	return word2idx, vocabulary
 
 
+def getting_lemmas_two_lex(emb_type, dict_vad, dict_emo_lex, word2vec):
+	print('Getting lemmas...')
+	counter_lem_lex = 0
+	counter_word = 0
+	counter_word_dict = 0
+	word2idx = {}
+	vocabulary = []
+
+	lemmatizer = WordNetLemmatizer()
+	list_keys = list(word2vec.keys()) if emb_type != 'word2vec' else list(word2vec.key_to_index.keys())
+	words_lexicons = dict.fromkeys(list(set(dict_vad.keys()).union(set(dict_emo_lex.keys()))), 0)
+	
+	for key in list_keys:
+		if key in words_lexicons:
+			vocabulary.append(key)
+			counter_word_dict += 1
+			word2idx[key] = counter_word
+			counter_word += 1
+		else:
+			lemma = lemmatizer.lemmatize(key)
+			if lemma in words_lexicons and lemma not in word2idx:
+				counter_lem_lex += 1
+				vocabulary.append(key)
+				word2idx[key] = counter_word
+				counter_word += 1
+
+	print('words in lexicons and ' + emb_type + ': ', counter_word_dict)
+	print('lemmas_lexicons: ', counter_lem_lex)
+	print('final vocabulary size: ', counter_word)
+
+	return word2idx, vocabulary
+
+def filling_embeddings_two_lex(word2idx, word2vec, vocabulary, dict_vad, dict_emo_lex, emb_type, type_matrix_emb, type_lex):
+	count_known_words = 0
+	count_unknown_words = 0
+	count_vad = 0
+	count_emo_lex = 0
+	y_vad = []
+	y_emo_lex = []
+
+	# type_matrix_emb, if lexicons only load the embeddings where is a value in the lexicons, if full
+	# load all the embeddings creatings neutral values for words not present in the lexicons
+	if type_matrix_emb == 'lexicons':
+		embeddings_list = vocabulary
+	else:
+		set1 = set(vocabulary)
+		set2 = set(list(word2vec.keys()) if emb_type != 'word2vec' else list(word2vec.key_to_index.keys()))
+		embeddings_list = list(set.union(set1, set2))
+
+	embedding_matrix = np.zeros((len(embeddings_list), 300))
+	i = 0
+	size_output_emo = random.choice(list(dict_emo_lex.items()))[1]
+	#print('size_outpt_class sub: ', len(size_output))
+	print('size_outpt_class emo: ', len(size_output_emo))
+	for word in embeddings_list:
+		embedding_vector = word2vec[word]
+		if embedding_vector is None:
+			# words not found in embedding index will be initialized with a gaussian distribution.
+			embedding_matrix[i] = np.random.uniform(-0.25, 0.25, 300)
+			count_unknown_words += 1
+		else:
+			embedding_matrix[i] = embedding_vector
+			count_known_words += 1
+
+		# addings vad values
+		if word in dict_vad:
+			y_vad.append(dict_vad[word])
+			count_vad += 1
+		else:
+			y_vad.append(np.zeros(3))
+
+		# addings emo_lex values
+		if word in dict_emo_lex:
+			y_emo_lex.append(dict_emo_lex[word])
+			count_emo_lex += 1
+		else:
+			arr = np.zeros(len(size_output_emo))
+			arr[-1] = 1
+			y_emo_lex.append(arr)
+		i += 1
+	y_vad = np.asarray(y_vad, dtype='float32')
+	y_emo_lex = np.asarray(y_emo_lex, dtype='int32')
+
+	print('Size words initialized with a gaussian distribution: ', count_unknown_words)
+	print('Size words with a value in word2vec: ', count_known_words)
+	print('Num of vad values: ', count_vad, ', size: ', np.shape(y_vad))
+	print('Num emo_lex: ', count_emo_lex, ', size: ', np.shape(y_emo_lex))
+
+	
+	return embedding_matrix, embeddings_list, y_vad, y_emo_lex
 
 def filling_embeddings(word2idx, word2vec, vocabulary, dict_vad, dict_sub, dict_emo_lex, emb_type, type_matrix_emb, type_lex):
 	count_known_words = 0

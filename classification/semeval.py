@@ -8,6 +8,8 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.metrics import precision_score, recall_score, f1_score, accuracy_score, r2_score
 from sklearn import preprocessing
+from sklearn.preprocessing import OneHotEncoder
+from sklearn.metrics import multilabel_confusion_matrix
 
 import random
 import pandas as pd
@@ -49,10 +51,14 @@ arr_type_matrix_emb = ['vad']
 embedding_type = ['glove', 'word2vec', 'numberbatch']
 
 arr_pca = ['pca', 'nopca']
-dir_datasets = settings.input_dir_emo_corpora + 'semeval/semeval_2013/'
+dir_datasets = settings.input_dir_emo_corpora + 'semeval/semeval_2017/'
 
 
-y_train, x_train, y_dev, x_dev, y_test, x_test = read_datasets(dir_datasets)
+y_train, x_train, y_dev, x_dev, y_test, x_test, classes = read_datasets(dir_datasets)
+onehot_encoder = OneHotEncoder(sparse=False)
+y_train = onehot_encoder.fit_transform(y_train.reshape(len(y_train), 1))
+y_dev = onehot_encoder.fit_transform(y_dev.reshape(len(y_dev), 1))
+y_test = onehot_encoder.fit_transform(y_test.reshape(len(y_test), 1))
 
 
 tokenizer = Tokenizer()
@@ -74,13 +80,14 @@ x_test = pad_sequences(x_test, max_len_input, padding='pre', truncating='post')
 
 ##############################################################################################################3
 word2vec = {}
-#path = settings.dir_embeddings_glove #'/home/carolina/Documents/sota/Emotional-Embedding-master/counter_fitted_vectors-0.txresults/counter_fitted_vectors-0.txt'
+path = settings.dir_embeddings_glove #'/home/carolina/Documents/sota/Emotional-Embedding-master/counter_fitted_vectors-0.txresults/counter_fitted_vectors-0.txt'
 #path = '/home/carolina/corpora/embeddings/emotions_embedings/sawe-tanh-pca-100-glove.txt'
-emb_type = 'sent_emb_glove_vad_mms_dot_product_hstack_plus_bias_relu_pca'#'combined_class_reg_full_matrix'#'combined_class_reg__full_matrix' # sub_clue, emo_lex
+emb_type = 'glove'#'sent_emb_glove_vad_mms_dot_product_hstack_plus_bias_relu_pca'#'combined_class_reg__full_matrix' # sub_clue, emo_lex
+#emb_type = 'combined_class_reg_full_matrix'
 #path = settings.dir_embeddings_word2vec 
 #path = '/home/carolina/Documents/sota/counter-fitting-master/results/counter_fitted_vectors.txt'
 #path = '/home/carolina/embeddings/dense_model/emb/last_version/' + emb_type + '.txt'
-path = '/home/carolina/embeddings/dense_model/emb/results_training/' + emb_type + '.txt'
+#path = '/home/carolina/embeddings/dense_model/emb/results_training/' + emb_type + '.txt'
 if emb_type != 'word2vec':
 	for line in open(path):
 		values = line.split()
@@ -115,9 +122,9 @@ embedding_layer = Embedding(
 
 input_ = Input(shape=(max_len_input,))
 x = embedding_layer(input_)
-bidirectional = GRU(150)#, recurrent_dropout=0.5))
+bidirectional = GRU(10)#, recurrent_dropout=0.5))
 x1 = bidirectional(x)
-output = Dense(1, activation='sigmoid')(x1)#, kernel_regularizer=regularizers.l2(0.01))(x1)#, bias_regularizer=regularizers.l2(0.01))(x1)
+output = Dense(3, activation='sigmoid')(x1)#, kernel_regularizer=regularizers.l2(0.01))(x1)#, bias_regularizer=regularizers.l2(0.01))(x1)
 
 arr_acc = []
 arr_precision = []
@@ -127,8 +134,8 @@ arr_f1 = []
 for run in range(1, 11):
 	print('Run: ', run)
 	model = Model(inputs=input_, outputs=output)
-	model.compile('adam',#Adam(learning_rate=0.001),#'adam', 
-		'binary_crossentropy', 
+	model.compile(Adam(learning_rate=0.001),#'adam', 
+		'categorical_crossentropy', 
 		metrics=['accuracy'])
 	#model.summary()
 	#exit()
@@ -142,10 +149,10 @@ for run in range(1, 11):
 			save_best_only=True)
 
 
-	early_stop = EarlyStopping(monitor='val_accuracy', patience=10)
+	#early_stop = EarlyStopping(monitor='val_accuracy', patience=10)
 
 	r = model.fit(x_train, y_train, validation_data=(x_dev, y_dev), 
-		batch_size=512, epochs=50, verbose=0, callbacks=[model_checkpoint_callback, early_stop])
+		batch_size=512, epochs=50, verbose=1, callbacks=[model_checkpoint_callback])#, early_stop])
 
 
 	# The model weights (that are considered the best) are loaded into the
@@ -155,12 +162,10 @@ for run in range(1, 11):
 	pred = model.predict(x_test, verbose=1)
 	pred = np.where(pred > 0.5, 1, 0)
 
-	precision = precision_score(y_true=y_test, y_pred=pred, labels=[0, 1], pos_label=1, average='binary')
-	recall = recall_score(y_true=y_test, y_pred=pred, labels=[0, 1], pos_label=1, average='binary')
-	f1 = f1_score(y_true=y_test, y_pred=pred, labels=[0, 1], pos_label=1, average='binary')
+	precision = precision_score(y_true=y_test, y_pred=pred, average='micro')
+	recall = recall_score(y_true=y_test, y_pred=pred, average='micro')
+	f1 = f1_score(y_true=y_test, y_pred=pred, average='micro')
 	acc = accuracy_score(y_true=y_test, y_pred=pred)
-	r2 = r2_score(y_true=y_test, y_pred=pred)
-
 
 	#print('Lexico: ', lexico)
 	lstm_dim_vec = 300
@@ -187,11 +192,25 @@ for run in range(1, 11):
 	plt.show()
 	'''
 
-	cf_matrix = confusion_matrix(labels=y_test, predictions=pred, num_classes=2)
+	cf_matrix = multilabel_confusion_matrix(y_true=y_test, y_pred=pred)
 	cf_matrix = np.array(cf_matrix)
-	rows, columns = np.shape(cf_matrix)
-	path_cf = 'confusion_matrix'
+	#rows, columns = np.shape(cf_matrix)
+	#path_cf = 'confusion_matrix'
 	print(cf_matrix)
+
+
+	# loss
+	plt.plot(r.history['loss'], label='loss')
+	plt.plot(r.history['val_loss'], label='val_loss')
+	plt.legend()
+	plt.show()
+
+	# accuracies
+	plt.plot(r.history['accuracy'], label='acc')
+	plt.plot(r.history['val_accuracy'], label='val_acc')
+	plt.legend()
+	plt.show()
+
 	exit()
 	if not os.path.exists(path_cf):
 		with open(path_cf, 'w') as file:
