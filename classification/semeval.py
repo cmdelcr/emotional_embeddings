@@ -80,13 +80,16 @@ x_test = pad_sequences(x_test, max_len_input, padding='pre', truncating='post')
 
 ##############################################################################################################3
 word2vec = {}
-path = settings.dir_embeddings_glove #'/home/carolina/Documents/sota/Emotional-Embedding-master/counter_fitted_vectors-0.txresults/counter_fitted_vectors-0.txt'
-#path = '/home/carolina/corpora/embeddings/emotions_embedings/sawe-tanh-pca-100-glove.txt'
-emb_type = 'glove'#'sent_emb_glove_vad_mms_dot_product_hstack_plus_bias_relu_pca'#'combined_class_reg__full_matrix' # sub_clue, emo_lex
-#emb_type = 'combined_class_reg_full_matrix'
+#path = settings.dir_embeddings_glove #'/home/carolina/Documents/sota/Emotional-Embedding-master/counter_fitted_vectors-0.txresults/counter_fitted_vectors-0.txt'
+#emb_type = 'combined_class_reg'
+#path = '/home/carolina/embeddings/dense_model/emb/last_version/' + emb_type + '.txt'
+emb_type = 'out_test'
+path = '/home/carolina/embeddings/dense_model/emb/' + emb_type + '.txt'
+#emb_type = 'glove'#'combined_class_reg_full_matrix'
 #path = settings.dir_embeddings_word2vec 
 #path = '/home/carolina/Documents/sota/counter-fitting-master/results/counter_fitted_vectors.txt'
 #path = '/home/carolina/embeddings/dense_model/emb/last_version/' + emb_type + '.txt'
+#path = '/home/carolina/embeddings/dense_model/emb/' + emb_type + '.txt'
 #path = '/home/carolina/embeddings/dense_model/emb/results_training/' + emb_type + '.txt'
 if emb_type != 'word2vec':
 	for line in open(path):
@@ -122,9 +125,11 @@ embedding_layer = Embedding(
 
 input_ = Input(shape=(max_len_input,))
 x = embedding_layer(input_)
-bidirectional = GRU(10)#, recurrent_dropout=0.5))
+bidirectional = LSTM(100)#, recurrent_dropout=0.5))
 x1 = bidirectional(x)
-output = Dense(3, activation='sigmoid')(x1)#, kernel_regularizer=regularizers.l2(0.01))(x1)#, bias_regularizer=regularizers.l2(0.01))(x1)
+output = Dense(3, kernel_regularizer=regularizers.l2(0.01), 
+			bias_regularizer=regularizers.l2(0.01), 
+			activation='sigmoid')(x1)
 
 arr_acc = []
 arr_precision = []
@@ -134,7 +139,7 @@ arr_f1 = []
 for run in range(1, 11):
 	print('Run: ', run)
 	model = Model(inputs=input_, outputs=output)
-	model.compile(Adam(learning_rate=0.001),#'adam', 
+	model.compile(Adam(learning_rate=0.0001),#'adam', 
 		'categorical_crossentropy', 
 		metrics=['accuracy'])
 	#model.summary()
@@ -152,7 +157,7 @@ for run in range(1, 11):
 	#early_stop = EarlyStopping(monitor='val_accuracy', patience=10)
 
 	r = model.fit(x_train, y_train, validation_data=(x_dev, y_dev), 
-		batch_size=512, epochs=50, verbose=1, callbacks=[model_checkpoint_callback])#, early_stop])
+		batch_size=128, epochs=20, verbose=0, callbacks=[model_checkpoint_callback])#, early_stop])
 
 
 	# The model weights (that are considered the best) are loaded into the
@@ -162,9 +167,9 @@ for run in range(1, 11):
 	pred = model.predict(x_test, verbose=1)
 	pred = np.where(pred > 0.5, 1, 0)
 
-	precision = precision_score(y_true=y_test, y_pred=pred, average='micro')
-	recall = recall_score(y_true=y_test, y_pred=pred, average='micro')
-	f1 = f1_score(y_true=y_test, y_pred=pred, average='micro')
+	precision = precision_score(y_true=y_test, y_pred=pred, average='macro')
+	recall = recall_score(y_true=y_test, y_pred=pred, average='macro')
+	f1 = f1_score(y_true=y_test, y_pred=pred, average='macro')
 	acc = accuracy_score(y_true=y_test, y_pred=pred)
 
 	#print('Lexico: ', lexico)

@@ -3,6 +3,7 @@ import os
 import pandas as pd
 from string import punctuation
 from nltk import TweetTokenizer
+from nltk.corpus import stopwords
 
 from gensim import models
 import settings
@@ -11,6 +12,7 @@ import numpy as np
 
 emotions = ['negative', 'positive', 'neutral']
 punctuation_list = list(punctuation)
+stop_words_list = stopwords.words('english')
 
 def remove_unecesary_data(sent):
 	# remove urls (https?:\/\/\S+) --> for urls with http
@@ -19,11 +21,21 @@ def remove_unecesary_data(sent):
 	# remove html reference characters
 	sent = re.sub(r'&[a-z]+;', '', sent)
 	#remove non-letter characters
-	sent = re.sub(r"[a-z\s\(\-:\)\\\/\\];='#", "", sent)
+	#sent = re.sub(r"[a-z\s\(\-:\)\\\/\\];='#", "", sent)
 	#removing handles
 	sent = re.sub(r'@[a-zA-Z0-9-_]*', '', sent)
 	# remove the symbol from hastag to analize the word
 	sent = re.sub(r'#', '', sent)
+	# remove numbers
+	sent = re.sub(r'[0-9]+', '', sent)
+
+	sent_aux = ''
+	for token in sent.split():
+		if token not in stop_words_list:
+			sent_aux += token + ' '
+
+	sent = re.sub(r'\s+', ' ', sent_aux.strip())
+
 
 	return sent
 
@@ -34,7 +46,7 @@ def preprocessing(sent):
 	tknzr = TweetTokenizer(preserve_case=True, reduce_len=True, strip_handles=True)
 	tokens = tknzr.tokenize(sent)
 
-	return [w for w in tokens if w not in punctuation_list]
+	return tokens#[w for w in tokens if w not in punctuation_list]
 
 def read_datasets(dir_datasets):
 	datasets = {'train': [], 'dev': [], 'test': []}

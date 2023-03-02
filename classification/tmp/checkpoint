@@ -1,2 +1,2 @@
-model_checkpoint_path: "checkpoint_glove"
-all_model_checkpoint_paths: "checkpoint_glove"
+model_checkpoint_path: "checkpoint_out_test"
+all_model_checkpoint_paths: "checkpoint_out_test"

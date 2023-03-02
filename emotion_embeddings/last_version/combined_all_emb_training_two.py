@@ -104,7 +104,7 @@ def create_model(input_shape, output_classification_size_emo):
 	x1 = hidden_shared_layer(input_)
 
 	#layer regression vad
-	hidden_layer_vad = Dense(300, activation='relu', name='hidden_layer_vad_1')
+	hidden_layer_vad = Dense(100, activation='relu', name='hidden_layer_vad_1')
 	x_vad = hidden_layer_vad(x1)
 	#hidden_layer_vad = Dense(200, activation='relu', name='hidden_layer_vad_2')
 	#x_vad = hidden_layer_vad(x_vad)
@@ -118,9 +118,9 @@ def create_model(input_shape, output_classification_size_emo):
 	hidden_layer_emo = Dense(30, activation='relu', name='hidden_layer_emo_1')#, 
 		#kernel_regularizer=regularizers.l2(0.0001), bias_regularizer=regularizers.l2(0.0001)) 
 	x_emo = hidden_layer_emo(x1)
-	hidden_layer_emo_2 = Dense(10, activation='relu', name='hidden_layer_emo_2')#, 
+	#hidden_layer_emo_2 = Dense(10, activation='relu', name='hidden_layer_emo_2')#, 
 		#kernel_regularizer=regularizers.l2(0.0001), bias_regularizer=regularizers.l2(0.0001)) 
-	x_emo = hidden_layer_emo_2(x_emo)
+	#x_emo = hidden_layer_emo_2(x_emo)
 
 	output_regression = Dense(3, activation='linear', name='output_reg_vad')(x_vad)
 	#output_class_sub = Dense(output_classification_size, activation='sigmoid', name='output_class_sub')(x_sub)
@@ -185,7 +185,7 @@ print('Loading vad lexicon...')
 dict_vad = read_vad_file()
 type_lex = 'emo_lex'
 multi_label_emo = True
-dict_emo_lex, arr_class_counter_emo = read_emo_lex_file(only_emotions=False, multi_label=multi_label_emo)
+dict_emo_lex, arr_class_counter_emo = read_emo_lex_file(only_emotions=True, multi_label=multi_label_emo)
 
 word2vec = read_embeddings(emb_type)
 word2idx, vocabulary = getting_lemmas_two_lex(emb_type, dict_vad, dict_emo_lex, word2vec)

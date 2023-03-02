@@ -11,6 +11,7 @@ from sklearn import preprocessing
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.metrics import multilabel_confusion_matrix
 from sklearn.svm import SVC
+from sklearn.svm import NuSVC
 from sklearn.model_selection import cross_val_score, GridSearchCV
 
 import time
@@ -100,7 +101,8 @@ print("Time filling embeddings: ", (time.time() - start_time))
 
 print('Starting classification...')
 start_time = time.time()
-svm_classifier = SVC(kernel='poly', C=1, degree=3)
+#svm_classifier = SVC(kernel='poly', C=1, degree=3)
+svm_classifier = NuSVC(nu=0.03)
 svm_classifier.fit(x_train,y_train)
 print('Training ended')
 print("Time training: ", (time.time() - start_time))

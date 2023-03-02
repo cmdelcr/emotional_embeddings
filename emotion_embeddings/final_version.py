@@ -8,7 +8,7 @@ from sklearn.preprocessing import OneHotEncoder
 from sklearn.decomposition import PCA
 from sklearn.decomposition import IncrementalPCA
 from sklearn.decomposition import TruncatedSVD
-from sklearn.metrics import r2_score
+from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.manifold import Isomap
 from sklearn.manifold import LocallyLinearEmbedding
@@ -47,10 +47,10 @@ def create_model(input_shape, num_units, activation_function):
 	#x1 = dense(input_)
 
 	#layer regression vad
-	hidden_layer_vad = Dense(200, activation='relu', name='hidden_layer_vad_1')
+	hidden_layer_vad = Dense(300, activation='relu', name='hidden_layer_vad_1')
 	x_vad = hidden_layer_vad(x1)
-	hidden_layer_vad = Dense(300, activation='relu', name='hidden_layer_vad_2')
-	x_vad = hidden_layer_vad(x_vad)
+	#hidden_layer_vad = Dense(200, activation='relu', name='hidden_layer_vad_2')
+	#x_vad = hidden_layer_vad(x_vad)
 
 
 
@@ -65,7 +65,7 @@ def compile_model(model, loss_='mean_squared_error', optimizer_='adam'):
 	#sparse_categorical_crossentropy is used to don't use the conversion
 	model.compile(
 			loss='mean_squared_error',
-			optimizer=Adam(lr=0.001),
+			optimizer=Adam(learning_rate=0.001),
 			metrics=[tf.keras.metrics.RootMeanSquaredError()]
 	)
 
@@ -100,13 +100,15 @@ def relu(arr):
 	return np.maximum(0, arr)
 
 
-def merge_semantic_end_emotion_embeddings(model, embedding_matrix, act='tanh', apply_pca=True, print_sizes=False):
+def merge_semantic_end_emotion_embeddings(model, embedding_matrix, act='tanh', apply_pca=True, print_sizes=True):
 	print('merging embeddings ...')
 	if print_sizes:
 		print('Matrix input_to_dense: ', np.shape(model.layers[1].get_weights()[0]))
 		print('Bias input_to_dense: ', np.shape(model.layers[1].get_weights()[1]))
 		print('Matrix dense_to_output: ', np.shape(model.layers[2].get_weights()[0]))
 		print('Bias dense_to_output', np.shape(model.layers[2].get_weights()[1]))
+		print('Matrix dense_to_output: ', np.shape(model.layers[3].get_weights()[0]))
+		print('Bias dense_to_output', np.shape(model.layers[3].get_weights()[1]))
 
 	input_matrix_dense = model.layers[1].get_weights()[0]
 	input_bias_dense = model.layers[1].get_weights()[1]
@@ -115,23 +117,22 @@ def merge_semantic_end_emotion_embeddings(model, embedding_matrix, act='tanh', a
 
 	print('^^^^')
 	#print(np.shape(senti_embedding))
-
 	#print('size of senti_embeddings: ', np.shape(input_matrix_dense))
-	senti_embedding = np.dot(embedding_matrix, input_matrix_dense) + input_bias_dense
+	senti_embedding = np.dot(embedding_matrix, model.layers[3].get_weights()[0]) + np.shape(model.layers[3].get_weights()[1])
 	#print('size after dot product: ', np.shape(senti_embedding))
 	#print('before apply relu')
 	#print(senti_embedding[0])
-	senti_embedding = np.apply_along_axis(np.tanh, 0, senti_embedding)
-
+	senti_embedding = np.apply_along_axis(relu, 0, senti_embedding)
+	senti_embedding = np.hstack((embedding_matrix, senti_embedding))
 	#print('after apply relu')
 	#print('size after appy tanh', np.shape(senti_embedding))
 	
-	senti_embedding = np.hstack((embedding_matrix, senti_embedding))
+	#senti_embedding = np.hstack((embedding_matrix, senti_embedding))
 	#print('size after stack', np.shape(senti_embedding_no_pca))
 	#exit()
 
 	#if apply_pca:
-	print('apply_pca')
+	'''print('apply_pca')
 	print(type_matrix_emb)
 	#TruncatedSVD, LinearDiscriminantAnalysis, Isomap, LocallyLinearEmbedding
 
@@ -146,7 +147,8 @@ def merge_semantic_end_emotion_embeddings(model, embedding_matrix, act='tanh', a
 		return ipca.transform(senti_embedding)#, senti_embedding_no_pca
 	else:
 		pca = PCA(300)
-		return pca.fit_transform(senti_embedding)#, senti_embedding_no_pca
+		return pca.fit_transform(senti_embedding)#, senti_embedding_no_pca'''
+	return senti_embedding
 
 def getting_lemmas_(emb_type, vad, word2vec):
 	counter_lem = 0
@@ -226,7 +228,9 @@ for emb_type in settings.embedding_type:
 				results = evaluate_model(model, y_train_)
 				pred = model.predict(embedding_matrix)
 				r2 = r2_score(y_train_, pred)
-				print(r2)
+				mse = mean_squared_error(y_train_, pred)
+				print('r2: ', r2)
+				print('mse: ', mse)
 				#exit()
 
 				#model.
@@ -239,12 +243,14 @@ for emb_type in settings.embedding_type:
 				print('----------------------------------------')
 
 				#full_mms_dot_product_hstack_plus_bias_relu_pca
-				name_file = 'sent_emb_' + emb_type + '_' + type_matrix_emb 	+ '_mms_dot_product_hstack_plus_bias_relu_pca'
+				'''name_file = 'sent_emb_' + emb_type + '_' + type_matrix_emb 	+ '_mms_dot_product_hstack_plus_bias_relu_pca'
 				print(name_file)
 				with open(os.path.join('/home/carolina/embeddings/dense_model/emb/results_training', name_file + '.txt'), 'w') as f:
 					f.write('mean_squared_error: %.6f\nroot_mean_squared_error: %.6f\nr2_score: %.6f' % 
 						(results[0], results[1], r2))
-					f.close()
+					f.close()'''
+
+				name_file = 'out_test.xt'
 
 				save_senti_embeddings(senti_embedding, vocabulary, vocabulary_, name_file, type_matrix_emb)
 				#name_file = 'sent_emb_' + emb_type + '_' + str(embedding_dimention) + '_' + act + '_e'+ str(epoch) + '_nopca_' + type_matrix_emb + '.txt'

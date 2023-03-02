@@ -104,23 +104,27 @@ def create_model(input_shape, output_classification_size, output_classification_
 	x1 = hidden_shared_layer(input_)
 
 	#layer regression vad
-	hidden_layer_vad = Dense(300, activation='relu', name='hidden_layer_vad_1')
+	hidden_layer_vad = Dense(350, activation='relu', name='hidden_layer_vad_1')
 	x_vad = hidden_layer_vad(x1)
 	#hidden_layer_vad = Dense(200, activation='relu', name='hidden_layer_vad_2')
 	#x_vad = hidden_layer_vad(x_vad)
 
 	# layers classification sub_clues
-	hidden_layer_sub = Dense(80, activation='tanh', name='hidden_layer_sub',
-		kernel_regularizer=regularizers.l2(0.0001), bias_regularizer=regularizers.l2(0.0001)) 
+	hidden_layer_sub = Dense(80, activation='relu', name='hidden_layer_sub_1')#,
+		#kernel_regularizer=regularizers.l2(0.0001), bias_regularizer=regularizers.l2(0.0001)) 
 	x_sub = hidden_layer_sub(x1)
+	#drop_out = Dropout(0.5)
+	#x_sub = drop_out(x_sub)
+	#hidden_layer_sub = Dense(20, activation='tanh', name='hidden_layer_sub_2') 
+	#x_sub = hidden_layer_sub(x_sub)
 
 	#layer classification_emo_lex
 	hidden_layer_emo = Dense(30, activation='relu', name='hidden_layer_emo_1')#, 
 		#kernel_regularizer=regularizers.l2(0.0001), bias_regularizer=regularizers.l2(0.0001)) 
 	x_emo = hidden_layer_emo(x1)
-	hidden_layer_emo_2 = Dense(10, activation='relu', name='hidden_layer_emo_2')#, 
+	#hidden_layer_emo_2 = Dense(10, activation='relu', name='hidden_layer_emo_2')#, 
 		#kernel_regularizer=regularizers.l2(0.0001), bias_regularizer=regularizers.l2(0.0001)) 
-	x_emo = hidden_layer_emo_2(x_emo)
+	#x_emo = hidden_layer_emo_2(x_emo)
 
 	output_regression = Dense(3, activation='linear', name='output_reg_vad')(x_vad)
 	output_class_sub = Dense(output_classification_size, activation='sigmoid', name='output_class_sub')(x_sub)
@@ -245,7 +249,7 @@ print(cf_matrix)
 
 senti_embedding = merge_semantic_end_emotion_embeddings(model, embedding_matrix, type_matrix_emb)
 print('Senti embeddings size PCA', np.shape(senti_embedding))
-name_file = 'combined_class_reg'
+name_file = 'combined_3_class_reg'
 
 save_senti_embeddings(senti_embedding, vocabulary_, vocabulary, name_file, type_matrix_emb)
 

@@ -14,16 +14,25 @@ punctuation_list = list(punctuation)
 
 def remove_unecesary_data(sent):
 	# remove urls (https?:\/\/\S+) --> for urls with http
-	sent = re.sub(r'https?:\/\/\S+', '', sent)
-	sent = re.sub(r"www\.[a-z]?\.?(com)+|[a-z]+\.(com)", '', sent)
-	# remove html reference characters
-	sent = re.sub(r'&[a-z]+;', '', sent)
-	#remove non-letter characters
-	sent = re.sub(r"[a-z\s\(\-:\)\\\/\\];='#", "", sent)
+	#sent = re.sub(r'https?:\/\/\S+', '', sent)
+	#sent = re.sub(r"www\.[a-z]?\.?(com)+|[a-z]+\.(com)", '', sent)
+	sent = re.sub('((www\.[^\s]+)|(https?://[^\s]+))','url',sent)
+	sent = re.sub(r'#([^\s]+)', r'\1', sent)
+	
+	#Removes unicode strings like "\u002c" and "x96"
+	sent = re.sub(r'(\\u[0-9A-Fa-f]+)',r'', sent)       
+	sent = re.sub(r'[^\x00-\x7f]',r'',sent)
+	
+	#remove numbers
+	#sent = ''.join([token for token in sent if not token.isdigit()])
+
 	#removing handles
-	sent = re.sub(r'@[a-zA-Z0-9-_]*', '', sent)
+	sent = re.sub('@[^\s]+','handles',sent)
+	
 	# remove the symbol from hastag to analize the word
-	sent = re.sub(r'#', '', sent)
+	sent = re.sub(r'#([^\s]+)', r'\1', sent)
+	#sent = re.sub(r'#', '', sent)
+	#print(sent)
 
 	return sent
 

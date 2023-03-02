@@ -393,7 +393,31 @@ def merge_semantic_end_emotion_embeddings(model, embedding_matrix, type_matrix_e
 		return pca.fit_transform(senti_embedding)#, senti_embedding_no_pca
 
 
+def merge_semantic_end_emotion_embeddings_emb_layer(model, embedding_matrix, type_matrix_emb, word2idx):
+	print('merging embeddings ...')
 
+	embeddings = model.layers[1].get_weights()[0]
+	words_embeddings = {w:embeddings[idx] for w, idx in word2idx.items()}
+
+	return words_embeddings
+
+
+
+
+def save_senti_embeddings_emb_layer(senti_embedding, labels_, labels, name_file, type_matrix_emb):
+	dir_name = settings.local_dir_embeddings + 'dense_model/emb/last_version'
+
+	if not os.path.exists(dir_name):
+		os.makedirs(dir_name)
+
+	i = 0
+	with open(os.path.join(dir_name, name_file + '.txt'), 'w') as f:
+		for key, value in senti_embedding.items():
+			if labels_[i] in labels:
+				f.write(key + " ")
+				np.savetxt(f, fmt='%.6f', X=np.atleast_2d(value), delimiter=' ', newline='\n')
+			i += 1
+		f.close()
 
 
 def save_senti_embeddings(senti_embedding, labels_, labels, name_file, type_matrix_emb):
@@ -403,7 +427,7 @@ def save_senti_embeddings(senti_embedding, labels_, labels, name_file, type_matr
 		os.makedirs(dir_name)
 
 	i = 0
-	with open(os.path.join(dir_name, name_file + '_' + ('full_matrix' if type_matrix_emb else '') + '.txt'), 'w') as f:
+	with open(os.path.join(dir_name, name_file + '.txt'), 'w') as f:
 		mat = np.matrix(senti_embedding)
 		for w_vec in mat:
 			if labels_[i] in labels:
